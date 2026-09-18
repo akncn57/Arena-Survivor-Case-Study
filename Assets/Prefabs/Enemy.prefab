@@ -45,6 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2b992d817b200b4abaca3d7d04e5ec4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ArenaSurvivor.Unity::ArenaSurvivor.Unity.Views.EnemyView
+  animator: {fileID: 8127232994023462209}
+  attackClipLength: 2.6333334
 --- !u!1001 &2423832636613650640
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -93,9 +95,41 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -6803169544883306252, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.41572735
+      objectReference: {fileID: 0}
+    - target: {fileID: -6803169544883306252, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.55697346
+      objectReference: {fileID: 0}
+    - target: {fileID: -6803169544883306252, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0.42961028
+      objectReference: {fileID: 0}
+    - target: {fileID: -6803169544883306252, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.5765297
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
       propertyPath: m_Name
       value: Model
+      objectReference: {fileID: 0}
+    - target: {fileID: 5866666021909216657, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: aeaa1227ce059ac4da05563479dadf28, type: 2}
+    - target: {fileID: 5866666021909216657, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_ApplyRootMotion
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8447082967072642302, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.14298238
+      objectReference: {fileID: 0}
+    - target: {fileID: 8447082967072642302, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0.24368651
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -105,5 +139,10 @@ PrefabInstance:
 --- !u!4 &2749895681931448123 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
+  m_PrefabInstance: {fileID: 2423832636613650640}
+  m_PrefabAsset: {fileID: 0}
+--- !u!95 &8127232994023462209 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 5866666021909216657, guid: 98c1d043ca6a17346923687ad0beedc5, type: 3}
   m_PrefabInstance: {fileID: 2423832636613650640}
   m_PrefabAsset: {fileID: 0}

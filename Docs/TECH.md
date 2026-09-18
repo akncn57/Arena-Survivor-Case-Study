@@ -412,3 +412,49 @@ UI
 150 enemy cap; the player's death shows "YOU DIED" with kills, survived time and the updated total;
 the joystick is disabled on the result screen; Play Again restores full health; Menu clears the arena;
 Easy starts a run with a 40 enemy cap; taking damage shows the red flash.
+
+## Animation (`Assets/Animations`)
+
+Mixamo clips (FBX for Unity, without skin, 30 FPS, in place), downloaded on Mixamo's Y Bot and
+retargeted to our characters through Unity's **Humanoid** system.
+
+| Clip | Used by | Loop |
+|------|------|------|
+| Rifle Idle, Rifle Run | Player (`AC_Player`) | yes |
+| Zombie Walk, Zombie Attack | Enemy (`AC_Enemy`) | yes |
+| Zombie Death | Enemy and player death | no |
+
+Import settings: rig Humanoid (avatar created from each file), root rotation / height / position baked into
+the pose, since the code moves the characters. `player.fbx` and `enemy.fbx` were switched from Generic to
+Humanoid so the clips can be retargeted; only their import settings (`.meta`) changed, the FBX files are untouched.
+
+**Controllers** (`Assets/Animations/Controllers`, created through MCP):
+- `AC_Player`: `Locomotion` 1D blend tree (Idle at `Speed` 0, Run at 1) and `Death` from Any State on the `Dead` trigger.
+- `AC_Enemy`: `Walk` <-> `Attack` on the `InRange` bool, `Death` from Any State on `Dead`.
+  The Attack state's speed comes from the `AttackSpeed` parameter.
+
+**Driving the Animators** (no Animator logic in Core):
+- `PlayerView` sets `Speed` from `PlayerCharacter.SpeedFraction` (0..1, joystick tilt), with a short damp.
+- `EnemyView.Begin` (when taken from the pool) resets the Animator, starts `Walk` at a random point of the cycle
+  (so a wave does not walk in lockstep) and sets `AttackSpeed = attackClipLength / attackInterval`,
+  so one swing lasts exactly one attack interval of the simulation.
+- `EnemyView.Sync` sets `InRange` only when `Enemy.IsInAttackRange` changes.
+- Parameters are set by hashed ids (`AnimatorIds`), not strings.
+
+**Death animations.** The simulation removes a killed enemy immediately. `EnemyDeathViews` listens to
+`EnemySystem.Died` (raised before `Despawned`), **detaches** the model from the registry, plays `Death`
+and returns the model to the pool after `corpseSeconds` (2.2 s). The following `Despawned -> Hide` finds nothing
+to hide. Corpses are cleared when a new run starts. The player's `Health.Died` triggers the player's death animation.
+
+**Rifle.** `rifle.fbx`'s embedded material has no textures, so `M_Rifle` (URP Lit with the provided albedo,
+metallic/smoothness and normal maps) is assigned on the player prefab. The normal map is imported as a
+normal map and the metallic map as linear data (import settings only). The rifle's offset under
+`mixamorig:RightHand` was computed through MCP from the sampled Rifle Idle pose: the barrel points from the
+right hand (grip) to the left hand (foregrip), then checked with rendered close-ups of idle and run.
+
+**Cost note for the optimization phase.** Every enemy has its own Humanoid Animator (retargeting is more
+expensive than Generic) with the default `Cull Update Transforms` mode, driving a 65-bone skinned mesh.
+This is expected to be one of the main CPU costs at high enemy counts and will be measured first.
+
+**Known polish items:** after a run ends the simulation freezes but the Animators keep playing (enemies walk
+in place behind the result screen); the Rifle Idle pose holds the rifle across the body rather than aimed.

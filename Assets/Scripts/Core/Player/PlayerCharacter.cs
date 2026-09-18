@@ -43,6 +43,9 @@ namespace ArenaSurvivor.Core.Player
 
         public bool IsMoving => Velocity.sqrMagnitude > MinDirectionSqr;
 
+        /// <summary>Current speed as a fraction of full speed (0..1). Blends idle and run animations.</summary>
+        public float SpeedFraction => _config.MoveSpeed > 0f ? Velocity.magnitude / _config.MoveSpeed : 0f;
+
         /// <summary>
         /// Moves by joystick input. Input longer than 1 is clamped, so diagonals are not faster.
         /// Faces the movement direction; <see cref="AimAt"/> may override the facing afterwards.

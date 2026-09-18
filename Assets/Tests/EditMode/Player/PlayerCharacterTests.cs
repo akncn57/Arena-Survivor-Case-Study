@@ -45,6 +45,16 @@ namespace ArenaSurvivor.Tests.EditMode.Player
         }
 
         [Test]
+        public void SpeedFraction_FollowsJoystickTilt()
+        {
+            _player.Move(1f, new Vector2(0f, 0.5f));
+            Assert.That(_player.SpeedFraction, Is.EqualTo(0.5f).Within(1e-4f));
+
+            _player.Move(1f, Vector2.zero);
+            Assert.That(_player.SpeedFraction, Is.EqualTo(0f));
+        }
+
+        [Test]
         public void Move_OversizedInput_IsClampedToFullSpeed()
         {
             _player.Move(1f, new Vector2(1f, 1f));

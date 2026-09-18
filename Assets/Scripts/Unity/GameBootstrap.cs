@@ -39,6 +39,9 @@ namespace ArenaSurvivor.Unity
         [Tooltip("Height above the ground at which bullets are drawn (roughly the rifle muzzle).")]
         [SerializeField] private float projectileHeight = 1.2f;
 
+        [Tooltip("Seconds a killed enemy stays on screen for its death animation.")]
+        [SerializeField, Min(0f)] private float corpseSeconds = 2.2f;
+
         [Header("Camera and input")]
         [SerializeField] private Camera gameCamera;
         [SerializeField] private FollowCamera.Settings cameraSettings = new FollowCamera.Settings();
@@ -56,6 +59,7 @@ namespace ArenaSurvivor.Unity
         private FollowCamera _camera;
         private ViewRegistry<Enemy, EnemyView> _enemyViews;
         private ViewRegistry<Projectile, Transform> _projectileViews;
+        private EnemyDeathViews _enemyDeaths;
 
         // Cached once: passing a method group directly would allocate a new delegate every frame.
         private System.Action<Enemy, EnemyView> _syncEnemy;
@@ -84,17 +88,23 @@ namespace ArenaSurvivor.Unity
             _syncEnemy = (model, view) => view.Sync(model);
             _syncProjectile = SyncProjectile;
 
-            // Place a freshly shown view before it is drawn, so it never flashes at its old position.
-            _enemyViews.Shown += _syncEnemy;
+            // Set up a freshly shown view before it is drawn, so it never flashes at its old position or pose.
+            float attackInterval = enemy.Config.AttackInterval;
+            _enemyViews.Shown += (model, view) => view.Begin(model, attackInterval);
             _projectileViews.Shown += _syncProjectile;
 
-            _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash, SnapToPlayer);
+            // Death animations: enemies linger as corpses for a moment, the player falls over.
+            _enemyDeaths = new EnemyDeathViews(_enemyViews, corpseSeconds);
+            _world.Enemies.Died += _enemyDeaths.OnEnemyDied;
+            _world.Player.Health.Died += playerView.PlayDeath;
+
+            _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash, OnRunStarted);
         }
 
         private void Start()
         {
             _flow.ShowMenu();
-            SnapToPlayer();
+            OnRunStarted();
         }
 
         private void OnDestroy()
@@ -109,11 +119,17 @@ namespace ArenaSurvivor.Unity
             _world.Enemies.Despawned -= _enemyViews.Hide;
             _world.Projectiles.Spawned -= _projectileViews.Show;
             _world.Projectiles.Despawned -= _projectileViews.Hide;
+            _world.Enemies.Died -= _enemyDeaths.OnEnemyDied;
+            _world.Player.Health.Died -= playerView.PlayDeath;
         }
 
-        /// <summary>Places the player model and camera without smoothing, e.g. when a run starts.</summary>
-        private void SnapToPlayer()
+        /// <summary>
+        /// Called when a run (re)starts: removes leftover corpses and places the player model and camera
+        /// without smoothing, so they jump to the start instead of sliding there.
+        /// </summary>
+        private void OnRunStarted()
         {
+            _enemyDeaths.Clear();
             playerView.Snap(_world.Player);
             _camera.Snap(_world.Player.Position);
         }
@@ -126,6 +142,7 @@ namespace ArenaSurvivor.Unity
 
             playerView.Sync(_world.Player, deltaTime);
             _enemyViews.Sync(_syncEnemy);
+            _enemyDeaths.Tick(deltaTime);
             _projectileViews.Sync(_syncProjectile);
             _camera.Follow(_world.Player.Position, deltaTime);
             _flow.Tick(deltaTime);

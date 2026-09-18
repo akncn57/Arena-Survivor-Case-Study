@@ -59,6 +59,21 @@ namespace ArenaSurvivor.Unity.Views
             }
         }
 
+        /// <summary>
+        /// Unlinks a view from its model without returning it to the pool, so it can stay visible for a while
+        /// (e.g. a death animation). The caller must hand it back with <see cref="Release"/>.
+        /// </summary>
+        public bool Detach(TModel model, out TView view)
+        {
+            return _visible.Remove(model, out view);
+        }
+
+        /// <summary>Returns a view obtained through <see cref="Detach"/> to the pool.</summary>
+        public void Release(TView view)
+        {
+            _pool.Release(view);
+        }
+
         /// <summary>Runs <paramref name="sync"/> for every visible model/view pair.</summary>
         public void Sync(Action<TModel, TView> sync)
         {
