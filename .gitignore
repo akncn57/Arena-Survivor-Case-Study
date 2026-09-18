@@ -44,3 +44,6 @@ Thumbs.db
 
 # Local Claude settings
 .claude/settings.local.json
+
+# IL2CPP build temp
+/.utmp/
