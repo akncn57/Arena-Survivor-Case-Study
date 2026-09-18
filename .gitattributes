@@ -1,0 +1,27 @@
+# Normalize text files
+* text=auto
+
+# Unity YAML
+*.unity    text eol=lf merge=unityyamlmerge
+*.prefab   text eol=lf merge=unityyamlmerge
+*.asset    text eol=lf merge=unityyamlmerge
+*.mat      text eol=lf merge=unityyamlmerge
+*.anim     text eol=lf merge=unityyamlmerge
+*.controller text eol=lf merge=unityyamlmerge
+*.meta     text eol=lf
+*.cs       text diff=csharp
+
+# Binary assets (stored in plain Git, no LFS)
+*.fbx binary
+*.FBX binary
+*.blend binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.tga binary
+*.psd binary
+*.exr binary
+*.wav binary
+*.mp3 binary
+*.ogg binary
+*.mp4 binary
