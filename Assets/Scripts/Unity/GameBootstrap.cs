@@ -3,6 +3,7 @@ using ArenaSurvivor.Core.Difficulty;
 using ArenaSurvivor.Core.Enemies;
 using ArenaSurvivor.Core.Player;
 using ArenaSurvivor.Core.Save;
+using ArenaSurvivor.Core.Session;
 using ArenaSurvivor.Core.Weapons;
 using ArenaSurvivor.Core.World;
 using ArenaSurvivor.Unity.Cameras;
@@ -64,6 +65,7 @@ namespace ArenaSurvivor.Unity
         // Cached once: passing a method group directly would allocate a new delegate every frame.
         private System.Action<Enemy, EnemyView> _syncEnemy;
         private System.Action<Projectile, Transform> _syncProjectile;
+        private System.Action<Enemy, EnemyView> _freezeEnemy;
 
         public GameWorld World => _world;
 
@@ -98,6 +100,10 @@ namespace ArenaSurvivor.Unity
             _world.Enemies.Died += _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died += playerView.PlayDeath;
 
+            // The simulation freezes when a run ends; freeze the enemy animations with it.
+            _freezeEnemy = (model, view) => view.SetFrozen(true);
+            _world.Session.Ended += FreezeEnemies;
+
             _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash, OnRunStarted);
         }
 
@@ -121,6 +127,13 @@ namespace ArenaSurvivor.Unity
             _world.Projectiles.Despawned -= _projectileViews.Hide;
             _world.Enemies.Died -= _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died -= playerView.PlayDeath;
+            _world.Session.Ended -= FreezeEnemies;
+        }
+
+        private void FreezeEnemies(RunResult result)
+        {
+            _enemyViews.Sync(_freezeEnemy);
+            _enemyDeaths.Freeze();
         }
 
         /// <summary>
@@ -142,7 +155,18 @@ namespace ArenaSurvivor.Unity
 
             playerView.Sync(_world.Player, deltaTime);
             _enemyViews.Sync(_syncEnemy);
-            _enemyDeaths.Tick(deltaTime);
+
+            // Corpses fade out only during a run; they stay frozen behind the result screen
+            // and are removed when the player goes back to the menu.
+            if (_world.Session.IsPlaying)
+            {
+                _enemyDeaths.Tick(deltaTime);
+            }
+            else if (_world.Session.State == GameState.Idle)
+            {
+                _enemyDeaths.Clear();
+            }
+
             _projectileViews.Sync(_syncProjectile);
             _camera.Follow(_world.Player.Position, deltaTime);
             _flow.Tick(deltaTime);

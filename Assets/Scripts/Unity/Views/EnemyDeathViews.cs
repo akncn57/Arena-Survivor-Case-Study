@@ -61,6 +61,15 @@ namespace ArenaSurvivor.Unity.Views
             }
         }
 
+        /// <summary>Pauses every corpse's death animation (the run ended and the arena is frozen).</summary>
+        public void Freeze()
+        {
+            foreach (Corpse corpse in _corpses)
+            {
+                corpse.View.SetFrozen(true);
+            }
+        }
+
         /// <summary>Returns all corpses to the pool at once, e.g. when a new run starts.</summary>
         public void Clear()
         {

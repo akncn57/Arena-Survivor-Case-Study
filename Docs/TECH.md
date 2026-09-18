@@ -456,7 +456,16 @@ right hand (grip) to the left hand (foregrip), then checked with rendered close-
 expensive than Generic) with the default `Cull Update Transforms` mode, driving a 65-bone skinned mesh.
 This is expected to be one of the main CPU costs at high enemy counts and will be measured first.
 
-**Known polish items:** after a run ends the simulation freezes but the Animators keep playing (enemies walk
-in place behind the result screen); in Rifle Run the left hand leaves the rifle, so the rifle tilts upwards
+**Frozen arena after a run.** When `Session.Ended` fires, the bootstrap sets `animator.speed = 0` on every
+visible enemy and corpse, so the arena behind the result screen is a still frame. The player keeps animating
+(death animation after a loss). Corpses stop fading while frozen and are cleared on Play Again or Menu.
+`EnemyView.Begin` sets the speed back to 1 when a pooled view is reused.
+
+Verified through MCP in play mode with `EditorApplication.Step()` and a fixed `Time.captureDeltaTime`
+(the Editor does not advance play mode while it is in the background): after the player's death all 16
+visible enemy Animators had speed 0 and an unchanged pose one second later, the player was in `Death`;
+after Play Again new enemies animated normally; after Menu no enemy views were left.
+
+**Known polish item:** in Rifle Run the left hand leaves the rifle, so the rifle tilts upwards
 while running (a limitation of that clip). The first idle clip (Rifle Idle, rifle held across the body) was
 replaced with Rifle Aiming Idle so the rifle points at the target while standing and shooting.

@@ -20,6 +20,7 @@ namespace ArenaSurvivor.Unity.Views
         public void Begin(Enemy enemy, float attackInterval)
         {
             _inRange = false;
+            SetFrozen(false);
             animator.SetBool(AnimatorIds.InRange, false);
             animator.ResetTrigger(AnimatorIds.Dead);
             // Speed the attack clip up or down so one swing lasts exactly one attack interval.
@@ -44,6 +45,12 @@ namespace ArenaSurvivor.Unity.Views
         public void PlayDeath()
         {
             animator.SetTrigger(AnimatorIds.Dead);
+        }
+
+        /// <summary>Pauses the animation in its current pose, e.g. behind the result screen.</summary>
+        public void SetFrozen(bool frozen)
+        {
+            animator.speed = frozen ? 0f : 1f;
         }
     }
 }
