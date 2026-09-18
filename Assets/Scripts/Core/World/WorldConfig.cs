@@ -17,7 +17,7 @@ namespace ArenaSurvivor.Core.World
         [SerializeField, Min(1f)] private float arenaHalfSize = 20f;
 
         [Tooltip("Distance from the player at which enemies appear. Should be outside the camera view.")]
-        [SerializeField, Min(1f)] private float spawnRadius = 14f;
+        [SerializeField, Min(1f)] private float spawnRadius = 18f;
 
         [Tooltip("How close a bullet must pass to an enemy's centre to hit it (enemy radius + bullet radius).")]
         [SerializeField, Min(0.01f)] private float projectileHitRadius = 0.6f;

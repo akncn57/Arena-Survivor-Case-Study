@@ -29,6 +29,7 @@ injection, so switching later would only change the wiring code.
 | Assembly | Folder | Contents | References |
 |----------|--------|----------|------------|
 | `ArenaSurvivor.Core` | `Assets/Scripts/Core` | Game logic, plain C#, no MonoBehaviours | UnityEngine only (math types, JsonUtility) |
+| `ArenaSurvivor.Unity` | `Assets/Scripts/Unity` | Thin Unity layer: bootstrap, views, input, camera | Core, Input System, uGUI |
 | `ArenaSurvivor.Tests.EditMode` | `Assets/Tests/EditMode` | NUnit EditMode tests for Core | Core, Unity Test Framework |
 
 Assembly definitions keep compile times short and enforce the direction of dependencies:
@@ -284,3 +285,75 @@ runs add up, and every `Spawned` event is matched by a `Despawned` event (otherw
 models). A smoke test plays a full 3-minute run at 60 FPS with the default tuning.
 
 Shared test doubles live in `Tests/EditMode/TestDoubles` (`InMemorySaveService`).
+
+### Input maths (`Core/Input`)
+
+`JoystickModel` is the maths of the floating on-screen joystick, kept in Core so it can be tested:
+- `Press(point)` puts the joystick base where the finger touched down.
+- `Drag(point)` moves the handle, clamped to `radius`. `Value` is the direction with strength 0..1.
+- A **dead zone** (10% of the radius by default) ignores a resting thumb. Outside it the strength is rescaled
+  to start from 0, so there is no jump when leaving the dead zone.
+- `Release()` zeroes everything.
+
+Tests: `JoystickModelTests`.
+
+## Unity layer (`Assets/Scripts/Unity`)
+
+Only `GameBootstrap` has an `Update()`. Every other component is either plain C# or a MonoBehaviour
+that is driven by the bootstrap, so the order of everything that happens in a frame is visible in one method.
+
+| Type | Kind | Role |
+|------|------|------|
+| `GameBootstrap` | MonoBehaviour | Composition root. Builds `GameWorld` from the data assets, connects views to its events, runs the frame. |
+| `VirtualJoystick` | MonoBehaviour (uGUI) | Turns pointer events into `JoystickModel` calls and moves the two joystick images. |
+| `MoveInput` | Plain C# | Joystick while touched, otherwise keyboard (WASD/arrows) or gamepad, for testing in the Editor. |
+| `ViewRegistry<TModel, TView>` | Plain C# | Maps simulation objects to pooled GameObjects. |
+| `PlayerView` | MonoBehaviour | Copies the player's position; turns smoothly towards its facing. |
+| `EnemyView` | MonoBehaviour | Copies one enemy's position and facing. |
+| `FollowCamera` | Plain C# | Tilted top-down camera with a fixed offset and light smoothing. |
+
+**Frame** (`GameBootstrap.Update`):
+
+```
+input  = MoveInput.Read()
+world.Tick(deltaTime, input)        simulation (see GameWorld)
+playerView.Sync                     draw the player
+enemyViews.Sync / projectileViews.Sync   draw every enemy and bullet
+camera.Follow                       camera last, so it sees the final player position
+```
+
+**View pooling.** `ViewRegistry` is connected to a system's events: `Spawned -> Show` takes a GameObject
+from a pool, activates it and remembers which model it draws; `Despawned -> Hide` deactivates it and puts it
+back. Enemy and bullet GameObjects are all created at startup (prewarm), so no `Instantiate`/`Destroy`
+happens during play. A freshly shown view is placed immediately, so it never flashes at its old position.
+
+**No per-frame garbage.** The sync callbacks are cached delegates. Passing a method name directly
+(`Sync(SyncProjectile)`) would create a new delegate object every frame.
+
+### Scene (`Assets/Scenes/Arena.unity`)
+
+Built through Unity MCP.
+
+| Object | Contents |
+|------|------|
+| `Arena` | 40 x 40 ground plane and four low walls (placeholders, static-batched, no colliders). |
+| `Player` | `Assets/Prefabs/Player.prefab`: `PlayerView`, the original `player.fbx`, `rifle.fbx` under `mixamorig:RightHand`. |
+| `GameBootstrap` | References to the data assets, prefabs, camera and joystick. |
+| `UI` | Screen-space canvas (reference 1920 x 1080, landscape) with a full-screen `JoystickArea`. |
+| `EventSystem` | Uses `InputSystemUIInputModule` (the project uses the new Input System only). |
+
+Prefabs: `Enemy.prefab` (`EnemyView` + original `enemy.fbx`), `Bullet.prefab` (small stretched sphere with an
+unlit material, no collider, no shadows). The models are linked prefab instances of the original FBX files,
+so optimized models can later be swapped in without touching the originals.
+
+The game runs in landscape, locked to `LandscapeLeft` (top of the phone on the left), set in Player Settings.
+
+**Camera framing.** The camera settings were chosen by rendering the camera at 16:9 through MCP with marker
+enemies placed at the weapon range and at the spawn radius:
+- Offset `(0, 20, -11.5)` (about 60 degrees down) and a 40 degree field of view. A narrow field of view from further
+  away flattens perspective, so the far side of the screen shows less ground than a wide lens would.
+- Visible ground around the player: about 15 units left/right, 8 behind, 12 ahead.
+- The weapon range (8) fits on screen, so the player only shoots enemies the user can see.
+- The spawn radius (18) is outside the view, so enemies walk in from off-screen instead of popping in.
+  At the far corners of the screen the view is wider than 18, so a spawn there can occasionally be visible.
+The rifle grip is a placeholder until animations are added; the characters are in T-pose until then.
