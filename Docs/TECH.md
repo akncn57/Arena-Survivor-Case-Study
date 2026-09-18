@@ -420,7 +420,7 @@ retargeted to our characters through Unity's **Humanoid** system.
 
 | Clip | Used by | Loop |
 |------|------|------|
-| Rifle Idle, Rifle Run | Player (`AC_Player`) | yes |
+| Rifle Aiming Idle, Rifle Run | Player (`AC_Player`) | yes |
 | Zombie Walk, Zombie Attack | Enemy (`AC_Enemy`) | yes |
 | Zombie Death | Enemy and player death | no |
 
@@ -429,7 +429,7 @@ the pose, since the code moves the characters. `player.fbx` and `enemy.fbx` were
 Humanoid so the clips can be retargeted; only their import settings (`.meta`) changed, the FBX files are untouched.
 
 **Controllers** (`Assets/Animations/Controllers`, created through MCP):
-- `AC_Player`: `Locomotion` 1D blend tree (Idle at `Speed` 0, Run at 1) and `Death` from Any State on the `Dead` trigger.
+- `AC_Player`: `Locomotion` 1D blend tree (Rifle Aiming Idle at `Speed` 0, Rifle Run at 1) and `Death` from Any State on the `Dead` trigger.
 - `AC_Enemy`: `Walk` <-> `Attack` on the `InRange` bool, `Death` from Any State on `Dead`.
   The Attack state's speed comes from the `AttackSpeed` parameter.
 
@@ -449,7 +449,7 @@ to hide. Corpses are cleared when a new run starts. The player's `Health.Died` t
 **Rifle.** `rifle.fbx`'s embedded material has no textures, so `M_Rifle` (URP Lit with the provided albedo,
 metallic/smoothness and normal maps) is assigned on the player prefab. The normal map is imported as a
 normal map and the metallic map as linear data (import settings only). The rifle's offset under
-`mixamorig:RightHand` was computed through MCP from the sampled Rifle Idle pose: the barrel points from the
+`mixamorig:RightHand` was computed through MCP from the sampled Rifle Aiming Idle pose: the barrel points from the
 right hand (grip) to the left hand (foregrip), then checked with rendered close-ups of idle and run.
 
 **Cost note for the optimization phase.** Every enemy has its own Humanoid Animator (retargeting is more
@@ -457,4 +457,6 @@ expensive than Generic) with the default `Cull Update Transforms` mode, driving 
 This is expected to be one of the main CPU costs at high enemy counts and will be measured first.
 
 **Known polish items:** after a run ends the simulation freezes but the Animators keep playing (enemies walk
-in place behind the result screen); the Rifle Idle pose holds the rifle across the body rather than aimed.
+in place behind the result screen); in Rifle Run the left hand leaves the rifle, so the rifle tilts upwards
+while running (a limitation of that clip). The first idle clip (Rifle Idle, rifle held across the body) was
+replaced with Rifle Aiming Idle so the rifle points at the target while standing and shooting.
