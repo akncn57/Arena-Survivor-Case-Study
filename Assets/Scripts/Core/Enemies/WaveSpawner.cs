@@ -14,7 +14,7 @@ namespace ArenaSurvivor.Core.Enemies
         private readonly EnemySystem _enemies;
         private readonly float _spawnRadius;
         private readonly float _arenaHalfSize;
-        private readonly System.Random _random;
+        private System.Random _random;
 
         private DifficultyConfig _difficulty;
         private float _timeUntilNextWave;
@@ -38,10 +38,16 @@ namespace ArenaSurvivor.Core.Enemies
         }
 
         /// <summary>Prepares a new run with the chosen difficulty. The first wave spawns on the next tick.</summary>
-        public void Begin(DifficultyConfig difficulty)
+        /// <param name="random">Optional new random source, e.g. a freshly seeded one for a repeatable run.</param>
+        public void Begin(DifficultyConfig difficulty, System.Random random = null)
         {
             _difficulty = difficulty ?? throw new ArgumentNullException(nameof(difficulty));
             _timeUntilNextWave = 0f;
+
+            if (random != null)
+            {
+                _random = random;
+            }
         }
 
         /// <returns>Number of enemies spawned this tick.</returns>

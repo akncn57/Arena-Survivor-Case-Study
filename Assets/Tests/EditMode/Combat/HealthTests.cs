@@ -71,6 +71,19 @@ namespace ArenaSurvivor.Tests.EditMode.Combat
         }
 
         [Test]
+        public void Invulnerable_IgnoresDamage()
+        {
+            var health = new Health(10) { IsInvulnerable = true };
+            bool damaged = false;
+            health.Damaged += _ => damaged = true;
+
+            health.TakeDamage(50);
+
+            Assert.That(health.Current, Is.EqualTo(10));
+            Assert.That(damaged, Is.False);
+        }
+
+        [Test]
         public void Reset_RefillsAfterDeath()
         {
             var health = new Health(10);

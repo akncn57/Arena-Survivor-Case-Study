@@ -17,6 +17,9 @@ namespace ArenaSurvivor.Core.Combat
         public int Current { get; private set; }
         public bool IsDead => Current <= 0;
 
+        /// <summary>While true, <see cref="TakeDamage"/> is ignored. Used by the benchmark run.</summary>
+        public bool IsInvulnerable { get; set; }
+
         /// <summary>Health from 0 to 1, for health bars.</summary>
         public float Normalized => (float)Current / Max;
 
@@ -26,7 +29,7 @@ namespace ArenaSurvivor.Core.Combat
 
         public void TakeDamage(int amount)
         {
-            if (amount <= 0 || IsDead)
+            if (amount <= 0 || IsDead || IsInvulnerable)
             {
                 return;
             }

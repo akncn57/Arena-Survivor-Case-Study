@@ -469,3 +469,48 @@ after Play Again new enemies animated normally; after Menu no enemy views were l
 **Known polish item:** in Rifle Run the left hand leaves the rifle, so the rifle tilts upwards
 while running (a limitation of that clip). The first idle clip (Rifle Idle, rifle held across the body) was
 replaced with Rifle Aiming Idle so the rifle points at the target while standing and shooting.
+
+## Benchmark mode (`Core/Benchmark`, `Unity/Benchmark`)
+
+A fixed, repeatable performance test, started from the **BENCHMARK** button in the menu. It exists so the
+reference and the optimized build are measured under exactly the same conditions, on the device, without
+needing a Profiler connection.
+
+**Scenario** (`BenchmarkSettings` on the bootstrap, spawn tuning in `Difficulty_Benchmark`):
+
+| Setting | Value | Why |
+|------|------|------|
+| Spawn | 10 enemies every 0.5 s, cap 150 | Reaches the worst case (150 alive) within the warm-up |
+| Seed | 12345 | Same spawn positions every run (`RunOptions.Seed`) |
+| Player | Invulnerable, no input | The run always lasts its full length, the load is identical |
+| Warm-up | 10 s, not measured | Arena fills up, shaders and pools warm up |
+| Measured | 60 s | |
+| Frame rate cap | 120 (game: 60) | A capped 60 would hide the headroom between the builds |
+| Save file | Untouched (`RunOptions.SkipProgress`) | A test run must not change the lifetime kills |
+
+**Measured values** (`BenchmarkRecorder`, `BenchmarkResult`):
+- Frame time from `Time.unscaledDeltaTime`: average FPS, **1% low FPS** (from the 99th percentile frame time),
+  average / p99 / max frame time. The 1% low shows hitches that an average hides.
+- CPU main thread and GPU time per frame from `FrameTimingManager` ("Frame Timing Stats" is enabled in Player
+  Settings, so this also works in release builds). Shown as `n/a` if the device does not report them.
+- Enemies alive (max, average), kills, allocated memory and GC heap size, device, GPU and graphics API.
+
+Recording allocates nothing: `SampleStats` keeps samples in preallocated arrays and sorts once at the end.
+
+**Output:** the result screen, a JSON file in `persistentDataPath/benchmarks/`, and a single log line
+starting with `BENCHMARK_RESULT` that can be read over USB:
+
+```
+adb logcat -s Unity | findstr BENCHMARK_RESULT
+```
+
+Core additions for the benchmark, all tested: `SampleStats` (average, max, nearest-rank percentile),
+`RunOptions` (seed, invulnerable, duration, skip progress) for `GameWorld.StartRun`, `Health.IsInvulnerable`.
+The first test run caught a float rounding bug in the percentile (`0.99f * 100` is slightly above 99, so the
+rank was off by one); fixed with a small epsilon.
+
+Verified end to end in the Editor through MCP (frames stepped manually): the run reached 150 enemies, lasted
+70 s, showed the result screen, wrote the JSON file and the log line, and restored the 60 FPS cap.
+
+**Test device:** Xiaomi Redmi Note 14 Pro (4G, model 24116RACCG), MediaTek Helio G100-Ultra (MT6789),
+Mali-G57 MC2 GPU, 8 GB RAM, 1080 x 2400 at up to 120 Hz, Android 16.

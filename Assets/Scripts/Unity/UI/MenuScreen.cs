@@ -14,8 +14,13 @@ namespace ArenaSurvivor.Unity.UI
         [SerializeField] private Button[] difficultyButtons;
         [SerializeField] private TMP_Text totalKillsText;
 
+        [Tooltip("Starts the fixed performance benchmark.")]
+        [SerializeField] private Button benchmarkButton;
+
         /// <summary>Raised with the index of the chosen difficulty.</summary>
         public event Action<int> DifficultySelected;
+
+        public event Action BenchmarkSelected;
 
         public void Bind(IReadOnlyList<DifficultySettings> difficulties)
         {
@@ -35,6 +40,9 @@ namespace ArenaSurvivor.Unity.UI
                 button.onClick.RemoveAllListeners();
                 button.onClick.AddListener(() => DifficultySelected?.Invoke(index));
             }
+
+            benchmarkButton.onClick.RemoveAllListeners();
+            benchmarkButton.onClick.AddListener(() => BenchmarkSelected?.Invoke());
         }
 
         public void Show(int totalKills)

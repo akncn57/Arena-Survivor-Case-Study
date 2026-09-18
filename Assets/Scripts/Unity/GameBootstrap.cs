@@ -6,6 +6,7 @@ using ArenaSurvivor.Core.Save;
 using ArenaSurvivor.Core.Session;
 using ArenaSurvivor.Core.Weapons;
 using ArenaSurvivor.Core.World;
+using ArenaSurvivor.Unity.Benchmark;
 using ArenaSurvivor.Unity.Cameras;
 using ArenaSurvivor.Unity.Input;
 using ArenaSurvivor.Unity.UI;
@@ -53,6 +54,12 @@ namespace ArenaSurvivor.Unity
         [SerializeField] private HudScreen hudScreen;
         [SerializeField] private ResultScreen resultScreen;
         [SerializeField] private DamageFlash damageFlash;
+        [SerializeField] private BenchmarkScreen benchmarkScreen;
+
+        [Header("Performance")]
+        [Tooltip("Frame rate cap during normal play. Android caps at 30 unless this is set.")]
+        [SerializeField, Min(30)] private int targetFrameRate = 60;
+        [SerializeField] private BenchmarkSettings benchmark = new BenchmarkSettings();
 
         private GameWorld _world;
         private GameFlow _flow;
@@ -104,7 +111,8 @@ namespace ArenaSurvivor.Unity
             _freezeEnemy = (model, view) => view.SetFrozen(true);
             _world.Session.Ended += FreezeEnemies;
 
-            _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash, OnRunStarted);
+            _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash,
+                benchmarkScreen, benchmark, targetFrameRate, OnRunStarted);
         }
 
         private void Start()
@@ -151,7 +159,9 @@ namespace ArenaSurvivor.Unity
         {
             float deltaTime = Time.deltaTime;
 
-            _world.Tick(deltaTime, _input.Read());
+            // The benchmark player stands still, so every benchmark run is identical.
+            Vector2 input = _flow.IsBenchmarkRunning ? Vector2.zero : _input.Read();
+            _world.Tick(deltaTime, input);
 
             playerView.Sync(_world.Player, deltaTime);
             _enemyViews.Sync(_syncEnemy);

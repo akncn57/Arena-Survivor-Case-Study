@@ -221,6 +221,83 @@ namespace ArenaSurvivor.Tests.EditMode.World
         }
 
         [Test]
+        public void SameSeed_GivesIdenticalSpawns()
+        {
+            // The benchmark relies on this: two runs with the same seed must place enemies identically,
+            // even if the worlds were created with different random sources.
+            var options = new RunOptions { Seed = 99 };
+            GameWorld a = CreateWorld(spawnRadius: 20f);
+            GameWorld b = new GameWorld(
+                new WorldConfig(Duration, 50f, 20f, 0.6f), new PlayerConfig(100, 5f),
+                new EnemyConfig(1, 0f, 10, 1f, 1f), new WeaponConfig(1, 0.2f, WeaponRange, 30f),
+                new ProgressService(new InMemorySaveService()), new System.Random(12345));
+
+            a.StartRun(Difficulty(waveSize: 5), options);
+            b.StartRun(Difficulty(waveSize: 5), options);
+            a.Tick(Frame, Vector2.zero);
+            b.Tick(Frame, Vector2.zero);
+
+            Assert.That(a.Enemies.AliveCount, Is.EqualTo(5));
+            for (int i = 0; i < a.Enemies.AliveCount; i++)
+            {
+                Assert.That(b.Enemies.Active[i].Position, Is.EqualTo(a.Enemies.Active[i].Position));
+            }
+        }
+
+        [Test]
+        public void InvulnerableRun_PlayerSurvivesAndNextNormalRunIsVulnerable()
+        {
+            GameWorld world = CreateWorld(spawnRadius: 20f, enemySpeed: 10f, enemyHealth: 1000, playerHealth: 10);
+            world.StartRun(Difficulty(interval: 0.5f, waveSize: 5), new RunOptions { Invulnerable = true });
+
+            RunFrames(world, Duration + 1f);
+
+            Assert.That(world.Session.State, Is.EqualTo(GameState.Won));
+            Assert.That(world.Player.Health.Current, Is.EqualTo(10));
+
+            world.StartRun(Difficulty(interval: 0.5f, waveSize: 5));
+            Assert.That(world.Player.Health.IsInvulnerable, Is.False);
+        }
+
+        [Test]
+        public void DurationOverride_EndsRunEarly()
+        {
+            GameWorld world = CreateWorld(spawnRadius: 20f);
+            world.StartRun(Difficulty(), new RunOptions { Duration = 2f });
+
+            RunFrames(world, 3f);
+
+            Assert.That(world.Session.State, Is.EqualTo(GameState.Won));
+            Assert.That(world.LastResult.Value.SurvivedSeconds, Is.EqualTo(2f).Within(1e-3f));
+        }
+
+        [Test]
+        public void SkipProgress_DoesNotChangeLifetimeKills()
+        {
+            GameWorld world = CreateWorld(spawnRadius: 5f);
+            world.StartRun(Difficulty(interval: 1f, waveSize: 2), new RunOptions { SkipProgress = true });
+
+            RunFrames(world, Duration + 1f);
+
+            Assert.That(world.LastResult.Value.Kills, Is.GreaterThan(0));
+            Assert.That(world.Progress.TotalKills, Is.EqualTo(0));
+            Assert.That(_save.SaveCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Replay_KeepsRunOptions()
+        {
+            GameWorld world = CreateWorld(spawnRadius: 20f);
+            world.StartRun(Difficulty(), new RunOptions { Duration = 2f, Invulnerable = true });
+            RunFrames(world, 3f);
+
+            world.Replay();
+
+            Assert.That(world.Session.Duration, Is.EqualTo(2f));
+            Assert.That(world.Player.Health.IsInvulnerable, Is.True);
+        }
+
+        [Test]
         public void FullRunWithDefaultTuning_CompletesConsistently()
         {
             // Smoke test: the real default configs for a full 3-minute run at 60 FPS, with the player

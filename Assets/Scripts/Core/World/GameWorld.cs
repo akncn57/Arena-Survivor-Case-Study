@@ -54,20 +54,26 @@ namespace ArenaSurvivor.Core.World
         /// <summary>Result of the last finished run, for the result screen. Null until a run ends.</summary>
         public RunResult? LastResult { get; private set; }
 
+        /// <summary>Options of the current or last run. Replay uses them again.</summary>
+        public RunOptions CurrentOptions { get; private set; }
+
         /// <summary>Starts a run. Also used for replay: everything from the previous run is cleared first.</summary>
-        public void StartRun(DifficultyConfig difficulty)
+        /// <param name="options">Overrides for special runs such as the benchmark. Default: a normal game.</param>
+        public void StartRun(DifficultyConfig difficulty, RunOptions options = default)
         {
             CurrentDifficulty = difficulty ?? throw new ArgumentNullException(nameof(difficulty));
+            CurrentOptions = options;
 
             ClearArena();
             Player.Reset(Vector3.zero);
+            Player.Health.IsInvulnerable = options.Invulnerable;
             Weapon.Reset();
-            _spawner.Begin(difficulty);
+            _spawner.Begin(difficulty, options.Seed.HasValue ? new System.Random(options.Seed.Value) : null);
             LastResult = null;
-            Session.Start(_world.RunDuration);
+            Session.Start(options.Duration ?? _world.RunDuration);
         }
 
-        /// <summary>Starts a new run with the same difficulty.</summary>
+        /// <summary>Starts a new run with the same difficulty and options.</summary>
         public void Replay()
         {
             if (CurrentDifficulty == null)
@@ -75,7 +81,7 @@ namespace ArenaSurvivor.Core.World
                 throw new InvalidOperationException("No run has been started yet.");
             }
 
-            StartRun(CurrentDifficulty);
+            StartRun(CurrentDifficulty, CurrentOptions);
         }
 
         /// <summary>Leaves the run and clears the arena, e.g. to pick another difficulty.</summary>
@@ -126,7 +132,11 @@ namespace ArenaSurvivor.Core.World
         private void OnRunEnded(RunResult result)
         {
             LastResult = result;
-            Progress.AddKills(result.Kills);
+
+            if (!CurrentOptions.SkipProgress)
+            {
+                Progress.AddKills(result.Kills);
+            }
         }
 
         private void ClearArena()
