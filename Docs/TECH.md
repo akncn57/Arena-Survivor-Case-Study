@@ -175,3 +175,64 @@ cost that should be measured first and then solved with a spatial grid.
 Tests: `EnemySystemTests` (movement, range, attack cooldown, damage stacking, death events, pool reuse,
 clearing during the player's death) and `WaveSpawnerTests` (timing, max alive cap, progress ramp,
 spawn ring, arena clamping, restart).
+
+### Player (`Core/Player`)
+
+| Type | Role |
+|------|------|
+| `PlayerConfig` | Stats: max health, move speed. |
+| `PlayerDefinition` | ScriptableObject wrapper (`Assets/Data/Player/Player_Default`). |
+| `PlayerCharacter` | Position, facing, velocity and `Health` of the player. |
+
+(The class is `PlayerCharacter`, not `Player`, because a type with the same name as its namespace
+forces awkward fully-qualified names everywhere else.)
+
+- **Input.** `Move(deltaTime, Vector2 input)` takes the joystick vector. `x` maps to world X and `y` to world Z.
+  The camera never rotates around the vertical axis, so "joystick up" always means "up the screen".
+- **Analog speed.** Half tilt moves at half speed. Input longer than 1 is clamped, so diagonals are not faster.
+- **Arena bounds.** The position is clamped inside the arena.
+- **Facing.** Moving turns the player towards the movement direction. `AimAt(point)` is called afterwards
+  when there is a target, so the rifle points at the enemy being shot, even while running the other way.
+- **Dead players do not move.** `Reset(position)` restores position and health for a new run.
+
+Tests: `PlayerCharacterTests`.
+
+### Weapons (`Core/Weapons`)
+
+| Type | Role |
+|------|------|
+| `WeaponConfig` | Rifle stats: damage, fire interval, range, projectile speed. |
+| `WeaponDefinition` | ScriptableObject wrapper (`Assets/Data/Weapons/Weapon_Rifle`). |
+| `Targeting` | `FindNearest(enemies, origin, range)`: nearest enemy within range, or null. |
+| `Weapon` | Auto-fire: picks the target every tick and fires when the cooldown is over. |
+| `Projectile` | State of one bullet: position, direction, remaining distance, damage. |
+| `ProjectileSystem` | Owns all bullets: pooled, one update loop, hit detection, events for the view. |
+
+Frame flow:
+
+```
+Weapon.Tick      -> Targeting.FindNearest -> CurrentTarget (player aims at it)
+                 -> cooldown over?        -> ProjectileSystem.Fire(...) + Fired event
+ProjectileSystem.Tick -> move each bullet -> hit an enemy?  -> EnemySystem.ApplyDamage + Hit event, despawn
+                                          -> flew too far?  -> despawn
+```
+
+Behaviour details:
+- **Auto-attack.** The weapon always shoots the nearest enemy in range (8 units by default). The first shot is
+  immediate when a target appears, then one shot per `fireInterval`.
+- **Bullets are simulated, not instant hits.** They fly straight at `projectileSpeed` and can miss an enemy
+  that moves out of the way. They fly `range x 1.5` before expiring, so they still reach a target that
+  moved slightly out of range.
+- **No tunnelling.** Hits are tested against the segment travelled this frame, not just the end point.
+  On a slow frame a bullet may move further than an enemy is wide; a point check would jump over it.
+  A test fires a bullet 100 units in one tick to guard this.
+- **One hit per bullet.** A bullet damages the first enemy on its path and disappears (no piercing).
+- **No Unity physics.** No colliders or rigidbodies: the maths are a few multiplications per bullet-enemy
+  pair, the results are deterministic in tests, and Unity's physics engine does not have to run at all.
+  The cost is O(bullets x enemies) per frame; bullets are few (one every 0.35 s, short-lived), so this
+  stays small, and the profiler will confirm it.
+- **Pooling.** Same pattern as enemies: `ObjectPool<Projectile>`, O(1) swap-remove, `Prewarm`, `Clear`.
+  The update loop runs backwards, so a removal only moves an already-updated bullet into the freed slot.
+
+Tests: `TargetingTests`, `WeaponTests`, `ProjectileSystemTests` (movement, expiry, hits, tunnelling,
+misses, kills, several bullets, pool reuse).
