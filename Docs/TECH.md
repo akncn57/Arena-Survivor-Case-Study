@@ -61,3 +61,61 @@ Behaviour details:
 
 Tests: `JsonFileSaveServiceTests` (real files in a per-test temp folder) and
 `ProgressServiceTests` (in-memory fake `ISaveService`, no disk access).
+
+### Session (`Core/Session`)
+
+One run of the game: the 3-minute survival timer, the kill count and the outcome.
+
+| Type | Role |
+|------|------|
+| `GameState` | `Idle` (difficulty selection), `Playing`, `Won`, `Lost`. |
+| `GameSession` | Owns the timer and kill count, decides win/lose, raises `Started` and `Ended`. |
+| `RunResult` | Passed with `Ended`: outcome, kills, survived seconds. Used by the result screen. |
+
+State flow:
+
+```
+Idle --Start(180)--> Playing --timer reaches 180s--> Won
+                        |
+                        +--NotifyPlayerDied()------> Lost
+Won / Lost --Start(180)--> Playing   (replay, all values reset)
+Won / Lost --ReturnToIdle()--> Idle  (back to difficulty selection)
+```
+
+Behaviour details:
+- **Time comes from outside.** `Tick(deltaTime)` is called by the Unity layer each frame. The session never reads
+  `Time.deltaTime` itself, so a test can simulate a full 3-minute run in microseconds.
+- **Ends exactly once.** After `Won` or `Lost`, further ticks, kills and deaths are ignored. A projectile that hits
+  after the timer ended does not count, and the player cannot die after winning.
+- **`Progress` (0..1)** tells other systems how far the run is. Spawning uses it to ramp up difficulty.
+- **Persisting kills is not the session's job.** The composition root subscribes `Ended` to
+  `ProgressService.AddKills`, which keeps the session free of save logic.
+
+Tests: `GameSessionTests` (state transitions, timer, kills, replay reset, a simulated 60 FPS run).
+
+### Difficulty (`Core/Difficulty`)
+
+Three difficulty levels in the same scene, differing only in enemy count and spawn rate.
+
+| Type | Role |
+|------|------|
+| `DifficultyConfig` | Plain serializable class with the tuning values and the ramp-up math. |
+| `DifficultySettings` | ScriptableObject asset wrapping one `DifficultyConfig` plus a display name. No logic. |
+
+Each value ramps linearly from its start value to its end value over the run, using `GameSession.Progress`:
+
+| Asset (`Assets/Data/Difficulty`) | Spawn interval (s) | Wave size | Max alive |
+|------|------|------|------|
+| `Difficulty_Easy` | 3.0 -> 1.5 | 2 -> 6 | 40 |
+| `Difficulty_Normal` | 2.5 -> 1.0 | 3 -> 10 | 80 |
+| `Difficulty_Hard` | 2.0 -> 0.6 | 4 -> 16 | 150 |
+
+`Max alive` is a hard cap: waves are trimmed so the enemy count never exceeds it. It bounds the worst-case
+CPU/GPU load, which also makes it the main knob for the performance tests. The values are a first pass
+and will be tuned by playtesting.
+
+Why two types instead of one ScriptableObject: a ScriptableObject can only be created through Unity
+(`CreateInstance`) and its fields are set through the Inspector. Keeping the logic in a plain class lets
+tests build a config with `new` and check the math directly.
+
+Tests: `DifficultyConfigTests` (start/end/midway values, clamping, validation).

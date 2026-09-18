@@ -56,5 +56,6 @@ Player: merge materials, moderate decimation. Rifle: textures to 512.
 ## Layout
 - `Assets/Models/` : original provided assets (do not modify).
 - `Assets/Scripts/Core/` : plain C# game logic (`ArenaSurvivor.Core.asmdef`).
+- `Assets/Data/` : ScriptableObject tuning assets (difficulty levels, enemy definitions).
 - `Assets/Tests/EditMode/` : EditMode tests (`ArenaSurvivor.Tests.EditMode.asmdef`).
 - `Docs/TECH.md` : technical overview of all systems.
