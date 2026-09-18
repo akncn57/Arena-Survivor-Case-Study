@@ -13,8 +13,16 @@ Why:
   on individual MonoBehaviours.
 - **Explicit.** Dependencies are passed through constructors, so it is visible what each class needs.
 
-No dependency injection framework is used. A single composition root in the scene will create the
-systems and wire them together by hand (added with the gameplay systems).
+No dependency injection framework is used; dependencies are passed through constructors.
+Wiring happens in two places:
+- `GameWorld` (Core) creates all gameplay systems and connects their events. Being plain C#, the whole
+  game can be simulated in a test.
+- A bootstrap MonoBehaviour in the scene (Unity side) creates the `GameWorld` from the data assets,
+  feeds it input every frame and connects the visual layer to its events.
+
+A container such as VContainer was considered; at this project size manual wiring is shorter, has no
+package dependency and keeps every connection visible in one file. Classes already use constructor
+injection, so switching later would only change the wiring code.
 
 ### Assemblies
 
@@ -236,3 +244,43 @@ Behaviour details:
 
 Tests: `TargetingTests`, `WeaponTests`, `ProjectileSystemTests` (movement, expiry, hits, tunnelling,
 misses, kills, several bullets, pool reuse).
+
+### World (`Core/World`)
+
+`GameWorld` is the whole simulation in one object. `WorldConfig` holds arena-wide settings
+(run duration, arena size, spawn radius, bullet hit radius, pool prewarm counts).
+
+**What it owns.** It creates `GameSession`, `PlayerCharacter`, `EnemySystem`, `ProjectileSystem`, `Weapon`
+and `WaveSpawner`, and exposes them (except the spawner) so the Unity side can draw them and subscribe to events.
+
+**Event wiring** (the only place systems are connected to each other):
+
+| Event | Handler | Effect |
+|------|------|------|
+| `Enemies.Died` | `Session.RegisterKill` | Kill counter |
+| `Player.Health.Died` | `Session.NotifyPlayerDied` | Run lost |
+| `Session.Ended` | `Progress.AddKills` + store `LastResult` | Lifetime kills saved, result screen data |
+
+**Frame order** in `Tick(deltaTime, joystickInput)`:
+
+```
+1. Player.Move            the player moves first; everything else reacts to the new position
+2. WaveSpawner.Tick       new enemies around the player
+3. Enemies.Tick           chase and attack; may kill the player -> run ends, stop here
+4. Weapon.Tick + AimAt    pick target, fire, face the target
+5. Projectiles.Tick       bullets fly and hit; kills counted through Enemies.Died
+6. Session.Tick           timer last, so a kill in the final frame still counts before the win
+```
+
+**Run flow.**
+- `StartRun(difficulty)`: clears enemies and bullets, resets player and weapon, starts the spawner and the timer.
+- `Replay()`: `StartRun` with the same difficulty. Lifetime kills are kept.
+- `ReturnToMenu()`: clears the arena and goes back to `Idle` for difficulty selection.
+- After a win or loss `Tick` does nothing, so the arena stays frozen behind the result screen.
+
+Tests: `GameWorldTests` are integration tests of all Core systems together: kills are counted, win and loss
+both save kills, the arena freezes after the run, replay resets everything but lifetime kills, kills of two
+runs add up, and every `Spawned` event is matched by a `Despawned` event (otherwise the Unity side would leak
+models). A smoke test plays a full 3-minute run at 60 FPS with the default tuning.
+
+Shared test doubles live in `Tests/EditMode/TestDoubles` (`InMemorySaveService`).

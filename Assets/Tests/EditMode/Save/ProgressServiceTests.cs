@@ -1,30 +1,16 @@
 using System;
 using ArenaSurvivor.Core.Save;
+using ArenaSurvivor.Tests.EditMode.TestDoubles;
 using NUnit.Framework;
 
 namespace ArenaSurvivor.Tests.EditMode.Save
 {
     public class ProgressServiceTests
     {
-        /// <summary>In-memory ISaveService that records how often Save was called.</summary>
-        private sealed class FakeSaveService : ISaveService
-        {
-            public SaveData Stored = new SaveData();
-            public int SaveCount;
-
-            public SaveData Load() => Stored;
-
-            public void Save(SaveData data)
-            {
-                Stored = data;
-                SaveCount++;
-            }
-        }
-
         [Test]
         public void TotalKills_StartsFromLoadedData()
         {
-            var fake = new FakeSaveService { Stored = new SaveData { totalKills = 10 } };
+            var fake = new InMemorySaveService { Stored = new SaveData { totalKills = 10 } };
 
             var progress = new ProgressService(fake);
 
@@ -34,7 +20,7 @@ namespace ArenaSurvivor.Tests.EditMode.Save
         [Test]
         public void AddKills_IncreasesTotalAndSaves()
         {
-            var fake = new FakeSaveService { Stored = new SaveData { totalKills = 10 } };
+            var fake = new InMemorySaveService { Stored = new SaveData { totalKills = 10 } };
             var progress = new ProgressService(fake);
 
             progress.AddKills(5);
@@ -47,7 +33,7 @@ namespace ArenaSurvivor.Tests.EditMode.Save
         [Test]
         public void AddKills_WithZero_DoesNotSave()
         {
-            var fake = new FakeSaveService();
+            var fake = new InMemorySaveService();
             var progress = new ProgressService(fake);
 
             progress.AddKills(0);
@@ -58,7 +44,7 @@ namespace ArenaSurvivor.Tests.EditMode.Save
         [Test]
         public void AddKills_WithNegative_Throws()
         {
-            var progress = new ProgressService(new FakeSaveService());
+            var progress = new ProgressService(new InMemorySaveService());
 
             Assert.Throws<ArgumentOutOfRangeException>(() => progress.AddKills(-1));
         }
