@@ -24,6 +24,7 @@ Survivor.io-style mobile game built for the Skyloft Studios Unity Developer case
 
 ## Decisions
 - Camera: slightly tilted isometric-style follow camera (not straight top-down).
+- Orientation: landscape, locked to LandscapeLeft (top of the phone on the left). Canvas reference 1920x1080.
 - Animation: classic Animator with Mixamo clips (both characters already use Mixamo rigs; download "Without Skin", Humanoid).
 - Custom on-screen joystick (no third-party asset).
 - Save system: JSON file in `Application.persistentDataPath` via `JsonUtility`, atomic write (temp file + replace),

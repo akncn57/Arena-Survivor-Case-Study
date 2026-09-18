@@ -357,3 +357,58 @@ enemies placed at the weapon range and at the spawn radius:
 - The spawn radius (18) is outside the view, so enemies walk in from off-screen instead of popping in.
   At the far corners of the screen the view is wider than 18, so a spawn there can occasionally be visible.
 The rifle grip is a placeholder until animations are added; the characters are in T-pose until then.
+
+### Presentation helpers (`Core/Presentation`)
+
+`TimeFormat` turns seconds into HUD text, kept in Core so the rounding rules are tested:
+- `CountdownSeconds` rounds **up** (0.2 s left still shows `0:01`; `0:00` only when time is really over).
+- `ElapsedSeconds` rounds **down** (59.9 s survived is `0:59`).
+- `MinutesSeconds(125)` gives `2:05`.
+
+Tests: `TimeFormatTests`.
+
+## UI (`Assets/Scripts/Unity/UI`)
+
+uGUI with TextMeshPro (TMP Essential Resources imported into `Assets/TextMesh Pro`).
+
+| Type | Kind | Role |
+|------|------|------|
+| `GameFlow` | Plain C# | Decides which screen is visible and what the buttons do. |
+| `MenuScreen` | MonoBehaviour | One button per difficulty (labels come from `DifficultySettings.DisplayName`) and lifetime kills. |
+| `HudScreen` | MonoBehaviour | Remaining time, kill count, health bar. Hosts the joystick. |
+| `ResultScreen` | MonoBehaviour | "YOU SURVIVED" / "YOU DIED", kills, survived time, lifetime kills, Play Again and Menu. |
+| `DamageFlash` | MonoBehaviour | Full-screen red tint when the player is hit, fading out in 0.35 s. |
+
+Screen flow:
+
+```
+Menu --difficulty button--> HUD (playing) --run ends--> Result --Play Again--> HUD
+                                                               --Menu--------> Menu
+```
+
+Behaviour details:
+- **The joystick lives under the HUD.** Hiding the HUD at the end of a run disables the joystick, and its
+  `OnDisable` releases it, so a finger still on the screen does not keep steering in the next run.
+- **Lifetime kills are already saved when the result screen reads them.** `GameWorld` subscribes to
+  `Session.Ended` in its constructor, before `GameFlow` does, and C# events call handlers in subscription order.
+- **No garbage from the HUD.** The timer and kill texts are rebuilt only when the displayed number changes
+  (once per second for the timer), not every frame.
+- **Damage feedback.** `Player.Health.Damaged` triggers `DamageFlash`. The flash image is disabled when fully
+  transparent, since a full-screen transparent image still costs GPU fill rate on mobile.
+- The bootstrap passes `SnapToPlayer` to `GameFlow`, which calls it after a run (re)starts, so the camera
+  and player model jump to the start position instead of sliding there.
+
+Canvas hierarchy (`UI`, sibling order = draw order):
+
+```
+UI
+|- HudScreen      JoystickArea (touch area + Background/Handle), HealthBar/Fill, Timer, Kills
+|- DamageFlash
+|- ResultScreen   Title, Kills, Survived, TotalKills, ReplayButton, MenuButton
+|- MenuScreen     Title, Subtitle, Easy/Normal/HardButton, TotalKills
+```
+
+**Verified through MCP** in play mode: menu shows the saved lifetime kills; Hard starts a run with a
+150 enemy cap; the player's death shows "YOU DIED" with kills, survived time and the updated total;
+the joystick is disabled on the result screen; Play Again restores full health; Menu clears the arena;
+Easy starts a run with a 40 enemy cap; taking damage shows the red flash.

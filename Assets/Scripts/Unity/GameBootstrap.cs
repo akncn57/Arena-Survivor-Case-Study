@@ -7,6 +7,7 @@ using ArenaSurvivor.Core.Weapons;
 using ArenaSurvivor.Core.World;
 using ArenaSurvivor.Unity.Cameras;
 using ArenaSurvivor.Unity.Input;
+using ArenaSurvivor.Unity.UI;
 using ArenaSurvivor.Unity.Views;
 using UnityEngine;
 
@@ -27,8 +28,8 @@ namespace ArenaSurvivor.Unity
         [SerializeField] private EnemyDefinition enemy;
         [SerializeField] private WeaponDefinition weapon;
 
-        [Tooltip("Difficulty used when the scene starts. Replaced by the difficulty menu later.")]
-        [SerializeField] private DifficultySettings startDifficulty;
+        [Tooltip("Difficulties offered in the menu, in button order (Easy, Normal, Hard).")]
+        [SerializeField] private DifficultySettings[] difficulties;
 
         [Header("Views")]
         [SerializeField] private PlayerView playerView;
@@ -43,7 +44,14 @@ namespace ArenaSurvivor.Unity
         [SerializeField] private FollowCamera.Settings cameraSettings = new FollowCamera.Settings();
         [SerializeField] private VirtualJoystick joystick;
 
+        [Header("UI")]
+        [SerializeField] private MenuScreen menuScreen;
+        [SerializeField] private HudScreen hudScreen;
+        [SerializeField] private ResultScreen resultScreen;
+        [SerializeField] private DamageFlash damageFlash;
+
         private GameWorld _world;
+        private GameFlow _flow;
         private MoveInput _input;
         private FollowCamera _camera;
         private ViewRegistry<Enemy, EnemyView> _enemyViews;
@@ -79,11 +87,14 @@ namespace ArenaSurvivor.Unity
             // Place a freshly shown view before it is drawn, so it never flashes at its old position.
             _enemyViews.Shown += _syncEnemy;
             _projectileViews.Shown += _syncProjectile;
+
+            _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash, SnapToPlayer);
         }
 
         private void Start()
         {
-            StartRun(startDifficulty);
+            _flow.ShowMenu();
+            SnapToPlayer();
         }
 
         private void OnDestroy()
@@ -93,15 +104,16 @@ namespace ArenaSurvivor.Unity
                 return;
             }
 
+            _flow.Dispose();
             _world.Enemies.Spawned -= _enemyViews.Show;
             _world.Enemies.Despawned -= _enemyViews.Hide;
             _world.Projectiles.Spawned -= _projectileViews.Show;
             _world.Projectiles.Despawned -= _projectileViews.Hide;
         }
 
-        public void StartRun(DifficultySettings difficulty)
+        /// <summary>Places the player model and camera without smoothing, e.g. when a run starts.</summary>
+        private void SnapToPlayer()
         {
-            _world.StartRun(difficulty.Config);
             playerView.Snap(_world.Player);
             _camera.Snap(_world.Player.Position);
         }
@@ -116,6 +128,7 @@ namespace ArenaSurvivor.Unity
             _enemyViews.Sync(_syncEnemy);
             _projectileViews.Sync(_syncProjectile);
             _camera.Follow(_world.Player.Position, deltaTime);
+            _flow.Tick(deltaTime);
         }
 
         private void SyncProjectile(Projectile projectile, Transform view)
