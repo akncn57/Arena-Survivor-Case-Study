@@ -40,6 +40,7 @@ Survivor.io-style mobile game built for the Skyloft Studios Unity Developer case
 - Every Core system gets EditMode NUnit tests (`Assets/Tests/EditMode`, mirroring source folders). Use fakes via interfaces.
 - Keep `Docs/TECH.md` updated whenever a system is added or changed; the user must be able to understand every system.
 - Build one system at a time, explain it, get the user's OK before the next.
+- Git: never add `Co-Authored-By` or any AI attribution lines to commit messages or PR descriptions.
 
 ## Source asset analysis (before optimization)
 | Asset  | Tris   | Verts  | Materials | Bones | Textures |
