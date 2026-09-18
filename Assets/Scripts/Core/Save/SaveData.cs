@@ -1,0 +1,19 @@
+using System;
+
+namespace ArenaSurvivor.Core.Save
+{
+    /// <summary>
+    /// Persistent player progress, serialized to JSON with JsonUtility.
+    /// New fields must have safe defaults so older save files still load.
+    /// Bump <see cref="CurrentVersion"/> only when a field changes meaning and needs migration.
+    /// </summary>
+    [Serializable]
+    public class SaveData
+    {
+        public const int CurrentVersion = 1;
+
+        // Public lowercase fields: JsonUtility serializes public fields, and the names become the JSON keys.
+        public int version = CurrentVersion;
+        public int totalKills;
+    }
+}

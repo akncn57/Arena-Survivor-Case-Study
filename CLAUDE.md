@@ -33,6 +33,14 @@ Survivor.io-style mobile game built for the Skyloft Studios Unity Developer case
 - Performance target: stable 60 FPS on mid-range Android; Low/Medium/High URP quality tiers for weaker devices.
 - Scope: required mechanics first; level-up/upgrades only if time remains.
 
+## Code conventions
+- Game logic in plain C# classes (`ArenaSurvivor.Core` assembly). MonoBehaviours only as a thin Unity-facing layer
+  (input, transforms, animation, UI, composition root). No DI framework; one composition root wires systems by hand.
+- Central systems update many entities in one loop (e.g. one enemy system, not one Update per enemy).
+- Every Core system gets EditMode NUnit tests (`Assets/Tests/EditMode`, mirroring source folders). Use fakes via interfaces.
+- Keep `Docs/TECH.md` updated whenever a system is added or changed; the user must be able to understand every system.
+- Build one system at a time, explain it, get the user's OK before the next.
+
 ## Source asset analysis (before optimization)
 | Asset  | Tris   | Verts  | Materials | Bones | Textures |
 |--------|--------|--------|-----------|-------|----------|
@@ -47,3 +55,6 @@ Player: merge materials, moderate decimation. Rifle: textures to 512.
 
 ## Layout
 - `Assets/Models/` : original provided assets (do not modify).
+- `Assets/Scripts/Core/` : plain C# game logic (`ArenaSurvivor.Core.asmdef`).
+- `Assets/Tests/EditMode/` : EditMode tests (`ArenaSurvivor.Tests.EditMode.asmdef`).
+- `Docs/TECH.md` : technical overview of all systems.
