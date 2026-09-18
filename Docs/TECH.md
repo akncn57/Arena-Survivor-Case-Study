@@ -119,3 +119,59 @@ Why two types instead of one ScriptableObject: a ScriptableObject can only be cr
 tests build a config with `new` and check the math directly.
 
 Tests: `DifficultyConfigTests` (start/end/midway values, clamping, validation).
+
+### Combat: Health (`Core/Combat`)
+
+`Health` holds hit points for the player and for every enemy.
+- `TakeDamage` ignores zero/negative amounts and clamps at 0.
+- `Damaged(amount)` fires on every hit (used for hit feedback). `Died` fires **exactly once**; a dead target ignores further damage.
+- `Reset()` refills it for a new life (pooled enemy reused, player on replay).
+
+Tests: `HealthTests`.
+
+### Enemies (`Core/Enemies`)
+
+Spawning, chasing, attacking and dying for all enemies.
+
+| Type | Role |
+|------|------|
+| `EnemyConfig` | Stats: health, speed, contact damage, attack interval, attack range. |
+| `EnemyDefinition` | ScriptableObject wrapper for `EnemyConfig` (`Assets/Data/Enemies/Enemy_Zombie`). |
+| `Enemy` | State of one enemy: position, facing, health, "in attack range" flag. Plain data, no behaviour. |
+| `EnemySystem` | Owns all enemies. Spawns from a pool, updates all of them in one loop, applies damage, despawns. |
+| `WaveSpawner` | Decides when and where a wave appears, based on difficulty and run progress. |
+
+**One system, one loop.** There is no MonoBehaviour per enemy. `EnemySystem.Tick` walks one list and,
+for each enemy: turns towards the player, moves by `speed * deltaTime` but stops at the attack range edge,
+and attacks when in range and its cooldown is over. With 150 enemies this is one method call per frame
+instead of 150 `Update()` calls, and the data is laid out in one place for the profiler to measure.
+
+**Talking to the Unity side with events.** The system does not know about GameObjects:
+- `Spawned(enemy)`: the view layer takes an enemy model from its own pool and follows this enemy.
+- `Died(enemy)`: killed by the player. The composition root forwards it to `GameSession.RegisterKill`.
+- `Despawned(enemy)`: the enemy left (killed or cleared). The view layer returns the model to its pool.
+
+**Pooling.** `Enemy` objects come from `UnityEngine.Pool.ObjectPool<T>` (built into Unity, no package).
+A killed enemy goes back to the pool and is reset on the next spawn, so after warm-up (`Prewarm`) no
+allocations happen during play. Removing from the active list is O(1): the last enemy is moved into the
+freed slot (`ActiveIndex` remembers each enemy's slot).
+
+**Damage to the player is applied once per tick, after the loop.** The total from all attacking enemies is
+summed and applied at the end. The player dying can trigger listeners that clear all enemies; doing that
+in the middle of the loop would break the iteration. A test guards this case.
+
+**Wave spawning.**
+- The first wave appears on the first tick of a run, then one wave every `GetSpawnInterval(progress)` seconds.
+- Wave size is `GetWaveSize(progress)`, trimmed so `AliveCount` never exceeds `MaxAliveEnemies`.
+- Enemies appear on a ring of `spawnRadius` around the player (chosen to be outside the camera view),
+  at a random angle, clamped inside the arena. Near the arena edge clamping can bring a spawn closer
+  than the ring; accepted as a minor trade-off for simplicity.
+- Randomness comes from an injected `System.Random`, so tests use a fixed seed and are repeatable.
+
+Known limitation (planned for the optimization phase): enemies do not push each other apart, so they
+can overlap when crowding the player. Separation needs neighbour lookups, which is exactly the kind of
+cost that should be measured first and then solved with a spatial grid.
+
+Tests: `EnemySystemTests` (movement, range, attack cooldown, damage stacking, death events, pool reuse,
+clearing during the player's death) and `WaveSpawnerTests` (timing, max alive cap, progress ramp,
+spawn ring, arena clamping, restart).
