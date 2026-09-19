@@ -429,6 +429,12 @@ Davranış ayrıntıları:
   `GameFlow`'dan önce abone olur; C# event'leri dinleyicileri abonelik sırasıyla çağırır.
 - **HUD çöp üretmez.** Süre ve kill metinleri her frame değil, gösterilen sayı değişince (süre için saniyede bir)
   yeniden oluşturulur.
+- **Can barı dolgunun sağ kenarını taşır.** Dolgu görseli barın üzerine gerilmiştir; can oranı dolgunun sağ çapasına
+  (`anchorMax.x`) yazılır ve sadece can değişince güncellenir. İlk sürüm `Image.fillAmount` kullanıyordu; dolgunun köşeli
+  görünmesini düzeltmek için sprite'ı kaldırılınca bar hep dolu kaldı, çünkü uGUI sprite'ı olmayan bir Image'da
+  `fillAmount`'u sessizce yok sayar. Kullanıcı telefonda fark etti; MCP ile yapılan ilk UI doğrulaması sadece
+  `fillAmount` değerini okuduğu için yakalayamamıştı. Düzeltme, oyuncuya hasar verip dolgunun genişliğini ölçerek
+  (100 canda 452/460 px, 40 canda 176 px) ve HUD'u render ederek doğrulandı.
 - **Hasar geri bildirimi.** `Player.Health.Damaged` `DamageFlash`'i tetikler. Flaş görseli tamamen şeffafken kapatılır;
   mobilde tam ekran şeffaf bir görsel bile GPU doldurma maliyeti taşır.
 - Oyun sırasında FPS 60'ta kilitlidir (Android aksi hâlde 30'a kilitler); benchmark sırasında 120.
