@@ -144,3 +144,31 @@ Ham sonuçlar: `Benchmarks/step4_separation_run1.json`, `Benchmarks/step4_separa
   sayısı arttı. Benchmark artık daha gerçekçi ve daha ağır bir sahneyi ölçüyor.
 - 60 FPS hedefi korunuyor: ortalama frame 16,7 ms'lik bütçenin 14,7 ms'ini kullanıyor, 1% low değişmedi.
 - Adım 3'ün (oyuncu) ayrı etkisi bu ölçümde ayrıştırılamıyor; tek karakter için küçük olması bekleniyor.
+
+## Adım 5: kalabalık titremesinin düzeltilmesi ve daha agresif LOD (`v1.1.3`, commit `a509f5d`)
+
+Değişiklik:
+- **Titreme düzeltmesi.** Telefonda benchmark sırasında oyuncunun etrafında biriken düşmanların titrediği fark edildi.
+  Ölçüldüğünde yerleşmiş kalabalıkta her düşman frame başına ortalama 18 cm ileri-geri gidiyor ve her frame yön
+  değiştiriyordu. Ayrışma sertliği 1 -> 0,5 ve 1/60 sn'lik alt adımlar ile düzeldi (ayrıntılar `TECH.md` > Ayrışma).
+- **LOD0 eşiği %12 -> %14,5.** Sadece kameraya en yakın düşmanlar 4.500 üçgenlik LOD0 ile çiziliyor; kalabalığın
+  çoğu 1.500 üçgenlik LOD1'de. Oyun mesafesinde iki LOD'un ayırt edilemediği Adım 1'de render ile gösterilmişti.
+
+| Ölçüm | Adım 4 (koşu 2) | Adım 5 |
+|------|------|------|
+| Ortalama FPS | 67,8 | **73,5** |
+| 1% low FPS | 58,7 | **58,7** |
+| Frame süresi ort. / p99 / en fazla (ms) | 14,7 / 17,0 / 33,9 | **13,6 / 17,0 / 34,0** |
+| GPU süresi (ms) | 14,5 | **13,4** |
+| CPU ana thread (ms) | 10,9 | **9,9** |
+| Ayrılmış bellek | 111 MB | 111 MB |
+
+Ham sonuç: `Benchmarks/step5_jitter_lod_run1.json`, `Benchmarks/step5_jitter_lod_run1.jpg` (bu adımda tek koşu yapıldı).
+
+**Yorum:** LOD değişikliği GPU'dan 1,1 ms geri kazandırdı; Adım 4'te sahnenin ağırlaşmasıyla kaybedilen payın
+yarısından fazlası geri geldi. CPU'daki 1 ms'lik düşüşün sebebi bu ölçümle kesinleştirilemiyor (olası açıklama:
+titremeyen kalabalıkta Animator'lar saldırı ve yürüme arasında gidip gelmiyor); Profiler olmadan varsayım olarak
+kalıyor. Referansa göre **5,0 kat** (14,6 -> 73,5 FPS), üstelik ekrana yayılmış ve daha ağır bir kalabalıkla.
+
+Not: dosyalar çekilirken bir önceki adımın sonucu yanlışlıkla bu adımın 1. koşusu gibi adlandırılmıştı; JSON içindeki
+sürüm ve tarih alanlarından fark edilip silindi.
