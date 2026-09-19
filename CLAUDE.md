@@ -1,7 +1,8 @@
 # Arena Survivor: Case Study
 
 Survivor.io-style mobile game built for the Skyloft Studios Unity Developer case study
-(also a portfolio piece). Deadline: 2026-09-25. All code, docs and commits in English.
+(also a portfolio piece). Deadline: 2026-09-25.
+Language: documentation (`Docs/`, README, AI work log) in **Turkish**; code, code comments and commit messages in English.
 
 ## Case requirements (summary)
 - Single arena, virtual joystick movement, auto-attack enemies in range (rifle fires projectiles).

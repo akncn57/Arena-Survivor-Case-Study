@@ -988,6 +988,74 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 362673144}
   m_CullTransparentMesh: 1
+--- !u!1001 &379502616
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1489833452093039416, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_Name
+      value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1702825811510480228, guid: f7bed149097ea24458fb836517a06928, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: f7bed149097ea24458fb836517a06928, type: 3}
+--- !u!114 &379502617 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 5345790421333134413, guid: f7bed149097ea24458fb836517a06928, type: 3}
+  m_PrefabInstance: {fileID: 379502616}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d84c6b1e74f817f419aea7596d615482, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArenaSurvivor.Unity::ArenaSurvivor.Unity.Views.PlayerView
 --- !u!1 &410087039
 GameObject:
   m_ObjectHideFlags: 0
@@ -1555,74 +1623,6 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 540597642}
   m_CullTransparentMesh: 1
---- !u!1001 &551275321
-PrefabInstance:
-  m_ObjectHideFlags: 0
-  serializedVersion: 2
-  m_Modification:
-    serializedVersion: 3
-    m_TransformParent: {fileID: 0}
-    m_Modifications:
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalPosition.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1395437067595608141, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_LocalEulerAnglesHint.z
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6793625346499537318, guid: 72780842176ed334db99991c66a35b45, type: 3}
-      propertyPath: m_Name
-      value: Player
-      objectReference: {fileID: 0}
-    m_RemovedComponents: []
-    m_RemovedGameObjects: []
-    m_AddedGameObjects: []
-    m_AddedComponents: []
-  m_SourcePrefab: {fileID: 100100000, guid: 72780842176ed334db99991c66a35b45, type: 3}
---- !u!114 &551275322 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 4622680994665706148, guid: 72780842176ed334db99991c66a35b45, type: 3}
-  m_PrefabInstance: {fileID: 551275321}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d84c6b1e74f817f419aea7596d615482, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: ArenaSurvivor.Unity::ArenaSurvivor.Unity.Views.PlayerView
 --- !u!1 &561382482
 GameObject:
   m_ObjectHideFlags: 0
@@ -3417,7 +3417,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: f40e4268896d7714d9840ab6f29893a7, type: 2}
   - {fileID: 11400000, guid: 9d36baf1f2fb8be43a924feadd490883, type: 2}
   - {fileID: 11400000, guid: 12c9939e46f9e794bb2e3eaad5b62d0d, type: 2}
-  playerView: {fileID: 551275322}
+  playerView: {fileID: 379502617}
   enemyPrefab: {fileID: 5876907397371644569, guid: 627040a5f6ad8404b887a9f99ef7662a, type: 3}
   projectilePrefab: {fileID: 7375807340956973490, guid: e2d026f9af6f08b4e8522ea6ada706b9, type: 3}
   projectileHeight: 1.2
@@ -5410,7 +5410,7 @@ SceneRoots:
   - {fileID: 410087041}
   - {fileID: 832575519}
   - {fileID: 1778224325}
-  - {fileID: 551275321}
+  - {fileID: 379502616}
   - {fileID: 97694154}
   - {fileID: 929709084}
   - {fileID: 1130987683}
