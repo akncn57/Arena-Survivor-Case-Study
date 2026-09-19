@@ -2,6 +2,7 @@ using System.IO;
 using ArenaSurvivor.Core.Difficulty;
 using ArenaSurvivor.Core.Enemies;
 using ArenaSurvivor.Core.Player;
+using ArenaSurvivor.Core.Presentation;
 using ArenaSurvivor.Core.Save;
 using ArenaSurvivor.Core.Session;
 using ArenaSurvivor.Core.Weapons;
@@ -72,6 +73,9 @@ namespace ArenaSurvivor.Unity
         private GameFlow _flow;
         private MoveInput _input;
         private FollowCamera _camera;
+        private CameraShake _shake;
+        private System.Action<int> _onPlayerDamaged;
+        private System.Action _onPlayerDied;
         private ViewRegistry<Enemy, EnemyView> _enemyViews;
         private ViewRegistry<Projectile, Transform> _projectileViews;
         private EnemyDeathViews _enemyDeaths;
@@ -93,6 +97,8 @@ namespace ArenaSurvivor.Unity
             _world = new GameWorld(world, player.Config, enemy.Config, weapon.Config, progress, new System.Random());
             _input = new MoveInput(joystick);
             _camera = new FollowCamera(gameCamera.transform, cameraSettings);
+            _shake = new CameraShake(cameraSettings.shakeMaxOffset, cameraSettings.shakeDecayPerSecond,
+                cameraSettings.shakeFrequency);
 
             var viewRoot = new GameObject("Views").transform;
             _enemyViews = new ViewRegistry<Enemy, EnemyView>(enemyPrefab, viewRoot, world.EnemyPrewarm);
@@ -115,6 +121,12 @@ namespace ArenaSurvivor.Unity
             _enemyDeaths = new EnemyDeathViews(_enemyViews, corpseSeconds);
             _world.Enemies.Died += _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died += playerView.PlayDeath;
+
+            // Camera shake when the player is hit, stronger when the player dies.
+            _onPlayerDamaged = _ => _shake.RaiseTo(cameraSettings.damageTrauma);
+            _onPlayerDied = () => _shake.RaiseTo(cameraSettings.deathTrauma);
+            _world.Player.Health.Damaged += _onPlayerDamaged;
+            _world.Player.Health.Died += _onPlayerDied;
 
             // Hit feedback: muzzle flash on every shot, a spark burst where a bullet hits.
             _impacts = new ImpactEffects(hitEffectPrefab, viewRoot, hitEffectPrewarm, hitEffectSeconds);
@@ -150,6 +162,8 @@ namespace ArenaSurvivor.Unity
             _world.Projectiles.Despawned -= _projectileViews.Hide;
             _world.Enemies.Died -= _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died -= playerView.PlayDeath;
+            _world.Player.Health.Damaged -= _onPlayerDamaged;
+            _world.Player.Health.Died -= _onPlayerDied;
             _world.Weapon.Fired -= playerView.OnFired;
             _world.Projectiles.Hit -= _onProjectileHit;
             _world.Session.Ended -= FreezeEnemies;
@@ -169,6 +183,7 @@ namespace ArenaSurvivor.Unity
         {
             _enemyDeaths.Clear();
             _impacts.Clear();
+            _shake.Reset();
             playerView.Snap(_world.Player);
             _camera.Snap(_world.Player.Position);
         }
@@ -197,7 +212,8 @@ namespace ArenaSurvivor.Unity
 
             _projectileViews.Sync(_syncProjectile);
             _impacts.Tick(deltaTime);
-            _camera.Follow(_world.Player.Position, deltaTime);
+            _shake.Tick(deltaTime);
+            _camera.Follow(_world.Player.Position, deltaTime, _shake.Offset);
             _flow.Tick(deltaTime);
         }
 

@@ -3429,6 +3429,11 @@ MonoBehaviour:
   cameraSettings:
     offset: {x: 0, y: 20, z: -11.5}
     smoothTime: 0.12
+    shakeMaxOffset: 1.6
+    shakeDecayPerSecond: 1.2
+    shakeFrequency: 8
+    damageTrauma: 0.6
+    deathTrauma: 1
   joystick: {fileID: 940171060}
   menuScreen: {fileID: 1842070545}
   hudScreen: {fileID: 1749372085}

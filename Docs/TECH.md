@@ -731,3 +731,39 @@ Ayrıntılar ve nedenleri:
 **MCP ile Play modunda doğrulandı:** Normal zorlukta 900 frame'lik turda 32 atış ve 31 isabet sayıldı; her atışta namlu
 ışığı, isabetlerde kıvılcım ve parlayan düşman görüldü. İsabet ve atış anları yakın plan render ile yakalandı. İlk render'da
 kıvılcımlar oyun mesafesinden neredeyse görünmüyordu; boyutları (0,2-0,4 m) ve sayıları (16) artırıldı.
+
+## Kamera sarsıntısı (`Core/Presentation/CameraShake`, `Unity/Cameras/FollowCamera`)
+
+Oyuncu vurulduğunda ve öldüğünde kamera sarsılır; kırmızı ekran flaşıyla birlikte hasarı "hissettirir".
+
+**Model: trauma (sarsıntı birikimi).**
+- Olaylar kameraya 0..1 arası bir **trauma** verir; trauma saniyede `shakeDecayPerSecond` kadar doğrusal azalır.
+- Sarsıntı şiddeti **trauma²** ile orantılıdır: küçük darbeler hafif kalır, büyükler belirgin olur ve sönmesi doğal
+  görünür (testte: trauma'nın dörtte biri, sarsıntının on altıda birini veriyor).
+- Yön rastgele sayılardan değil **Perlin gürültüsünden** gelir (iki ayrı gürültü kanalı, X ve Z); kamera titremek
+  yerine akıcı biçimde sallanır.
+- `AddTrauma` birikir (1'de durur); `RaiseTo` trauma'yı en az verilen seviyeye çıkarır ama biriktirmez.
+
+**Neden `RaiseTo`.** Kalabalıkta birkaç düşman oyuncuya sırayla vurduğu için saniyede birkaç hasar olayı gelir.
+Trauma her vuruşta toplansaydı oyuncu sarıldığında kamera sürekli en güçlü seviyede sallanırdı. Hasar trauma'yı 0,6'ya
+çıkarır, ölüm 1'e.
+
+**Sarsıntı yumuşatmaya karışmaz.** `FollowCamera` yumuşatılmış takip konumunu ayrı tutar ve sarsıntı ofsetini en sonda
+ekler. Aksi hâlde takip yumuşatması (SmoothDamp) sarsıntıyı da yumuşatıp yok ederdi.
+
+**Ayarlar** (bootstrap'te `Camera Settings`): en fazla ofset 1,6 m, sönme 1,2/sn, frekans 8, vuruş 0,6, ölüm 1.
+
+**Ayar süreci (MCP ile ölçülerek).** Oyuncuya Play modunda hasar verilip kameranın dinlenme konumundan sapması frame
+frame ölçüldü (bu kamerada 1 m zemin, 1080 piksellik ekranın yaklaşık 54 pikseli):
+
+| Deneme | Tek vuruş | Ölüm | Sorun |
+|------|------|------|------|
+| Frekans 22 (ilk) | - | - | Test yakaladı: frame başına en fazla ofsetin %63'ü kadar sıçrama, akıcı değil titreşim |
+| Ofset 0,45 m, vuruş 0,35 | 2 cm, 0,1 sn | - | Telefonda görünmez |
+| Ofset 1 m, vuruş 0,45 | 7 cm (~4 px), 0,15 sn | 45 cm | Hâlâ zayıf; Perlin pratikte teorik sınırın ~1/3'ünde kalıyor |
+| **Ofset 1,6 m, vuruş 0,6, sönme 1,2** | **22 cm (~12 px), 0,37 sn** | **92 cm (~50 px), 0,65 sn** | Art arda 5 vuruşta en fazla 33 cm; birikmiyor |
+
+Benchmark modunda oyuncu hasar almadığı için sarsıntı olmaz; ölçümleri etkilemez.
+
+Testler: `CameraShakeTests` (trauma yokken ofset yok, birikme ve 1'de sınır, `RaiseTo`'nun biriktirmemesi, doğrusal
+sönme, ofsetin zeminde ve trauma² sınırı içinde kalması, trauma²'ye bağlılık, frame'ler arası akıcılık, sıfırlama).
