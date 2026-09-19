@@ -29,11 +29,21 @@ namespace ArenaSurvivor.Unity.Cameras
             [Tooltip("How fast the shake moves.")]
             [Min(0.01f)] public float shakeFrequency = 8f;
 
+            [Tooltip("Largest roll around the view axis in degrees, reached at full trauma.")]
+            [Min(0f)] public float shakeMaxRollDegrees = 3f;
+
             [Tooltip("Trauma level the shake is raised to when the player takes damage (does not stack).")]
             [Range(0f, 1f)] public float damageTrauma = 0.6f;
 
             [Tooltip("Trauma level the shake is raised to when the player dies.")]
             [Range(0f, 1f)] public float deathTrauma = 1f;
+
+            [Header("Recoil")]
+            [Tooltip("How far each shot pushes the camera away from the target, in world units. 0 = off (default); 0.15 is a subtle kick.")]
+            [Min(0f)] public float recoilDistance = 0f;
+
+            [Tooltip("How fast the camera returns after a shot; higher is snappier.")]
+            [Min(0.01f)] public float recoilReturnSharpness = 20f;
         }
 
         private readonly Transform _camera;
@@ -50,13 +60,17 @@ namespace ArenaSurvivor.Unity.Cameras
 
         /// <param name="shakeOffset">Added after smoothing. Kept out of the smoothed position,
         /// otherwise the smoothing would absorb the shake.</param>
-        public void Follow(Vector3 target, float deltaTime, Vector3 shakeOffset)
+        /// <param name="shakeRoll">Roll around the view axis in degrees, on top of the fixed viewing angle.</param>
+        public void Follow(Vector3 target, float deltaTime, Vector3 shakeOffset, float shakeRoll)
         {
             Vector3 desired = target + _settings.offset;
             _followPosition = Vector3.SmoothDamp(_followPosition, desired, ref _velocity, _settings.smoothTime,
                 Mathf.Infinity, deltaTime);
-            _camera.position = _followPosition + shakeOffset;
+            _camera.SetPositionAndRotation(_followPosition + shakeOffset,
+                BaseRotation * Quaternion.Euler(0f, 0f, shakeRoll));
         }
+
+        private Quaternion BaseRotation => Quaternion.LookRotation(-_settings.offset, Vector3.up);
 
         /// <summary>Jumps to the target without smoothing or shake and points the camera at it.</summary>
         public void Snap(Vector3 target)
@@ -64,7 +78,7 @@ namespace ArenaSurvivor.Unity.Cameras
             _velocity = Vector3.zero;
             _followPosition = target + _settings.offset;
             _camera.position = _followPosition;
-            _camera.rotation = Quaternion.LookRotation(-_settings.offset, Vector3.up);
+            _camera.rotation = BaseRotation;
         }
     }
 }

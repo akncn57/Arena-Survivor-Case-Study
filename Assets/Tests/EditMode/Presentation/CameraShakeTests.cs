@@ -88,6 +88,34 @@ namespace ArenaSurvivor.Tests.EditMode.Presentation
         }
 
         [Test]
+        public void Roll_StaysWithinTraumaSquaredLimitAndStopsWithTrauma()
+        {
+            var shake = new CameraShake(MaxOffset, 1f, 8f, maxRollDegrees: 3f);
+            shake.AddTrauma(0.8f);
+            float largest = 0f;
+
+            for (int i = 0; i < 30; i++)
+            {
+                shake.Tick(1f / 60f);
+                Assert.That(Mathf.Abs(shake.Roll), Is.LessThanOrEqualTo(shake.Trauma * shake.Trauma * 3f + 1e-5f));
+                largest = Mathf.Max(largest, Mathf.Abs(shake.Roll));
+            }
+
+            Assert.That(largest, Is.GreaterThan(0f));
+            shake.Tick(2f);
+            Assert.That(shake.Roll, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void Roll_IsZeroWhenNotConfigured()
+        {
+            _shake.AddTrauma(1f);
+            _shake.Tick(1f / 60f);
+
+            Assert.That(_shake.Roll, Is.EqualTo(0f));
+        }
+
+        [Test]
         public void SmallTrauma_ShakesMuchLessThanFullTrauma()
         {
             // Strength is trauma squared: a quarter of the trauma gives a sixteenth of the shake limit.
@@ -140,12 +168,13 @@ namespace ArenaSurvivor.Tests.EditMode.Presentation
             Assert.That(_shake.Offset, Is.EqualTo(Vector3.zero));
         }
 
-        [TestCase(-1f, 1f, 1f)]
-        [TestCase(1f, 0f, 1f)]
-        [TestCase(1f, 1f, 0f)]
-        public void Constructor_WithInvalidValues_Throws(float maxOffset, float decay, float frequency)
+        [TestCase(-1f, 1f, 1f, 0f)]
+        [TestCase(1f, 0f, 1f, 0f)]
+        [TestCase(1f, 1f, 0f, 0f)]
+        [TestCase(1f, 1f, 1f, -1f)]
+        public void Constructor_WithInvalidValues_Throws(float maxOffset, float decay, float frequency, float roll)
         {
-            Assert.Throws<ArgumentOutOfRangeException>(() => new CameraShake(maxOffset, decay, frequency));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new CameraShake(maxOffset, decay, frequency, roll));
         }
     }
 }

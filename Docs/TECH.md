@@ -742,16 +742,19 @@ Oyuncu vurulduğunda ve öldüğünde kamera sarsılır; kırmızı ekran flaş�
   görünür (testte: trauma'nın dörtte biri, sarsıntının on altıda birini veriyor).
 - Yön rastgele sayılardan değil **Perlin gürültüsünden** gelir (iki ayrı gürültü kanalı, X ve Z); kamera titremek
   yerine akıcı biçimde sallanır.
+- Konum ofsetine ek olarak görüş ekseni etrafında küçük bir **yatma (roll)** üretir (üçüncü gürültü kanalı, en fazla
+  `shakeMaxRollDegrees`). Kamera arenadan ~23 m uzakta olduğu için birkaç santimlik kayma gözden kaçabiliyor; tüm
+  görüntünün hafifçe dönmesi ise hemen fark ediliyor. Editörde "kamera hiç sallanmıyor" geri bildirimi üzerine eklendi.
 - `AddTrauma` birikir (1'de durur); `RaiseTo` trauma'yı en az verilen seviyeye çıkarır ama biriktirmez.
 
 **Neden `RaiseTo`.** Kalabalıkta birkaç düşman oyuncuya sırayla vurduğu için saniyede birkaç hasar olayı gelir.
 Trauma her vuruşta toplansaydı oyuncu sarıldığında kamera sürekli en güçlü seviyede sallanırdı. Hasar trauma'yı 0,6'ya
 çıkarır, ölüm 1'e.
 
-**Sarsıntı yumuşatmaya karışmaz.** `FollowCamera` yumuşatılmış takip konumunu ayrı tutar ve sarsıntı ofsetini en sonda
-ekler. Aksi hâlde takip yumuşatması (SmoothDamp) sarsıntıyı da yumuşatıp yok ederdi.
+**Sarsıntı yumuşatmaya karışmaz.** `FollowCamera` yumuşatılmış takip konumunu ayrı tutar ve sarsıntı ofsetini ve yatmayı
+en sonda ekler (yatma sabit bakış açısının üzerine uygulanır). Aksi hâlde takip yumuşatması (SmoothDamp) sarsıntıyı da yumuşatıp yok ederdi.
 
-**Ayarlar** (bootstrap'te `Camera Settings`): en fazla ofset 1,6 m, sönme 1,2/sn, frekans 8, vuruş 0,6, ölüm 1.
+**Ayarlar** (bootstrap'te `Camera Settings`): en fazla ofset 1,6 m, en fazla yatma 3°, sönme 1,2/sn, frekans 8, vuruş 0,6, ölüm 1.
 
 **Ayar süreci (MCP ile ölçülerek).** Oyuncuya Play modunda hasar verilip kameranın dinlenme konumundan sapması frame
 frame ölçüldü (bu kamerada 1 m zemin, 1080 piksellik ekranın yaklaşık 54 pikseli):
@@ -765,5 +768,22 @@ frame ölçüldü (bu kamerada 1 m zemin, 1080 piksellik ekranın yaklaşık 54 
 
 Benchmark modunda oyuncu hasar almadığı için sarsıntı olmaz; ölçümleri etkilemez.
 
+**Ateş geri tepmesi (`Core/Presentation/CameraRecoil`).** **Varsayılan olarak kapalı** (`recoilDistance` = 0); oyun
+hissi denemesinde kapatılmasına karar verildi, açmak için `recoilDistance` 0,15 yapılır. Açıkken her atışta kamera
+hedefin tersi yönüne `recoilDistance` (0,15 m, ekranda ~8 px) kadar anında itilir ve üstel olarak geri döner (`recoilReturnSharpness` 20: 0,15 sn'de %95'i
+geri gelir; ateş aralığı 0,35 sn olduğundan bir sonraki atıştan önce kamera yerine oturur).
+- **Neden sarsıntı (trauma) değil:** silah saniyede ~3 kez ateş ediyor. Rastgele sarsıntı olsaydı kamera sürekli
+  titrer, hasar sarsıntısı da bunun içinde kaybolurdu. Geri tepme yönlü ve tahmin edilebilir; "silahın ağırlığı" hissini
+  verir, hasar sarsıntısı ayrı ve tanınır kalır.
+- Yeni atış eski tepmeye eklenmez, onu değiştirir; hızlı ateşte kamera hiçbir zaman bir tepmeden fazla kaymaz.
+- Geri dönüş `e^(-keskinlik * dt)` ile hesaplanır; 30 ve 120 FPS'te aynı sonucu verir (test ediliyor).
+- `GameBootstrap` `Weapon.Fired` olayında yönü `CurrentTarget.Position - Player.Position` ile bulur ve tepme ofsetini
+  sarsıntı ofsetiyle toplayıp `FollowCamera`'ya verir.
+- Play modunda doğrulandı (MCP): üç atışta tepme 0,150 m, yönü hedefin tam tersi (nokta çarpım -1,00), 0,15 sn sonra 0,0075 m.
+
+Testler: `CameraRecoilTests` (yere izdüşümlü ve atışın tersine itme, tepmelerin birikmemesi, bir sonraki atıştan önce
+dinlenmeye dönme, frame hızından bağımsızlık, sıfır yönün yok sayılması, sıfırlama, geçersiz değerler).
+
 Testler: `CameraShakeTests` (trauma yokken ofset yok, birikme ve 1'de sınır, `RaiseTo`'nun biriktirmemesi, doğrusal
-sönme, ofsetin zeminde ve trauma² sınırı içinde kalması, trauma²'ye bağlılık, frame'ler arası akıcılık, sıfırlama).
+sönme, ofsetin zeminde ve trauma² sınırı içinde kalması, trauma²'ye bağlılık, frame'ler arası akıcılık, yatmanın trauma² sınırında kalıp trauma ile sönmesi, ayarlanmamışsa
+yatmanın sıfır olması, sıfırlama).

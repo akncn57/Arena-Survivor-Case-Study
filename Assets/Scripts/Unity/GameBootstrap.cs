@@ -74,6 +74,8 @@ namespace ArenaSurvivor.Unity
         private MoveInput _input;
         private FollowCamera _camera;
         private CameraShake _shake;
+        private CameraRecoil _recoil;
+        private System.Action _onWeaponFired;
         private System.Action<int> _onPlayerDamaged;
         private System.Action _onPlayerDied;
         private ViewRegistry<Enemy, EnemyView> _enemyViews;
@@ -97,8 +99,9 @@ namespace ArenaSurvivor.Unity
             _world = new GameWorld(world, player.Config, enemy.Config, weapon.Config, progress, new System.Random());
             _input = new MoveInput(joystick);
             _camera = new FollowCamera(gameCamera.transform, cameraSettings);
+            _recoil = new CameraRecoil(cameraSettings.recoilDistance, cameraSettings.recoilReturnSharpness);
             _shake = new CameraShake(cameraSettings.shakeMaxOffset, cameraSettings.shakeDecayPerSecond,
-                cameraSettings.shakeFrequency);
+                cameraSettings.shakeFrequency, cameraSettings.shakeMaxRollDegrees);
 
             var viewRoot = new GameObject("Views").transform;
             _enemyViews = new ViewRegistry<Enemy, EnemyView>(enemyPrefab, viewRoot, world.EnemyPrewarm);
@@ -132,6 +135,16 @@ namespace ArenaSurvivor.Unity
             _impacts = new ImpactEffects(hitEffectPrefab, viewRoot, hitEffectPrewarm, hitEffectSeconds);
             _onProjectileHit = point => _impacts.Play(new Vector3(point.x, projectileHeight, point.z));
             _world.Weapon.Fired += playerView.OnFired;
+
+            // Recoil kick away from the target on every shot. The target is still set when Fired is raised.
+            _onWeaponFired = () =>
+            {
+                if (_world.Weapon.CurrentTarget != null)
+                {
+                    _recoil.Kick(_world.Weapon.CurrentTarget.Position - _world.Player.Position);
+                }
+            };
+            _world.Weapon.Fired += _onWeaponFired;
             _world.Projectiles.Hit += _onProjectileHit;
 
             // The simulation freezes when a run ends; freeze the enemy animations with it.
@@ -165,6 +178,7 @@ namespace ArenaSurvivor.Unity
             _world.Player.Health.Damaged -= _onPlayerDamaged;
             _world.Player.Health.Died -= _onPlayerDied;
             _world.Weapon.Fired -= playerView.OnFired;
+            _world.Weapon.Fired -= _onWeaponFired;
             _world.Projectiles.Hit -= _onProjectileHit;
             _world.Session.Ended -= FreezeEnemies;
         }
@@ -184,6 +198,7 @@ namespace ArenaSurvivor.Unity
             _enemyDeaths.Clear();
             _impacts.Clear();
             _shake.Reset();
+            _recoil.Reset();
             playerView.Snap(_world.Player);
             _camera.Snap(_world.Player.Position);
         }
@@ -213,7 +228,8 @@ namespace ArenaSurvivor.Unity
             _projectileViews.Sync(_syncProjectile);
             _impacts.Tick(deltaTime);
             _shake.Tick(deltaTime);
-            _camera.Follow(_world.Player.Position, deltaTime, _shake.Offset);
+            _recoil.Tick(deltaTime);
+            _camera.Follow(_world.Player.Position, deltaTime, _shake.Offset + _recoil.Offset, _shake.Roll);
             _flow.Tick(deltaTime);
         }
 

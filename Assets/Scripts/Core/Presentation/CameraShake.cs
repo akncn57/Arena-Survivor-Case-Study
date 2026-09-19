@@ -8,10 +8,13 @@ namespace ArenaSurvivor.Core.Presentation
     /// The shake strength is trauma squared, so small knocks stay subtle and big ones stand out,
     /// and the fade-out feels natural. The direction comes from Perlin noise instead of random numbers,
     /// so the camera sways smoothly rather than jittering.
+    /// Besides a position offset it produces a small roll: with a camera far above the arena, a few centimetres
+    /// of movement are hard to see, while a slight rotation of the whole image is obvious.
     /// </summary>
     public sealed class CameraShake
     {
         private readonly float _maxOffset;
+        private readonly float _maxRollDegrees;
         private readonly float _decayPerSecond;
         private readonly float _frequency;
         private float _time;
@@ -19,14 +22,16 @@ namespace ArenaSurvivor.Core.Presentation
         /// <param name="maxOffset">Largest offset in world units, reached at trauma 1.</param>
         /// <param name="decayPerSecond">Trauma lost per second (1 = full trauma fades in one second).</param>
         /// <param name="frequency">How fast the noise is sampled; higher shakes faster.</param>
-        public CameraShake(float maxOffset, float decayPerSecond, float frequency)
+        /// <param name="maxRollDegrees">Largest roll around the view axis, reached at trauma 1.</param>
+        public CameraShake(float maxOffset, float decayPerSecond, float frequency, float maxRollDegrees = 0f)
         {
-            if (maxOffset < 0f || decayPerSecond <= 0f || frequency <= 0f)
+            if (maxOffset < 0f || maxRollDegrees < 0f || decayPerSecond <= 0f || frequency <= 0f)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxOffset), "Offset cannot be negative; decay and frequency must be positive.");
+                throw new ArgumentOutOfRangeException(nameof(maxOffset), "Offset and roll cannot be negative; decay and frequency must be positive.");
             }
 
             _maxOffset = maxOffset;
+            _maxRollDegrees = maxRollDegrees;
             _decayPerSecond = decayPerSecond;
             _frequency = frequency;
         }
@@ -36,6 +41,9 @@ namespace ArenaSurvivor.Core.Presentation
 
         /// <summary>Offset to add to the camera position this frame.</summary>
         public Vector3 Offset { get; private set; }
+
+        /// <summary>Roll around the camera's view axis this frame, in degrees.</summary>
+        public float Roll { get; private set; }
 
         /// <summary>Adds trauma, e.g. 0.3 for a hit. Capped at 1.</summary>
         public void AddTrauma(float amount)
@@ -71,15 +79,18 @@ namespace ArenaSurvivor.Core.Presentation
             if (Trauma <= 0f)
             {
                 Offset = Vector3.zero;
+                Roll = 0f;
                 return;
             }
 
-            float strength = Trauma * Trauma * _maxOffset;
+            float shake = Trauma * Trauma;
             float t = _time * _frequency;
-            // Two independent noise channels (different rows of the noise field), mapped from 0..1 to -1..1.
+            // Independent noise channels (different rows of the noise field), mapped from 0..1 to -1..1.
             float x = Mathf.PerlinNoise(t, 0.37f) * 2f - 1f;
             float z = Mathf.PerlinNoise(t, 7.91f) * 2f - 1f;
-            Offset = new Vector3(x, 0f, z) * strength;
+            float roll = Mathf.PerlinNoise(t, 15.3f) * 2f - 1f;
+            Offset = new Vector3(x, 0f, z) * (shake * _maxOffset);
+            Roll = roll * shake * _maxRollDegrees;
         }
 
         /// <summary>Stops the shake immediately, e.g. when a new run starts.</summary>
@@ -87,6 +98,7 @@ namespace ArenaSurvivor.Core.Presentation
         {
             Trauma = 0f;
             Offset = Vector3.zero;
+            Roll = 0f;
         }
     }
 }

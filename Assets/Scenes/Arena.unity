@@ -3432,8 +3432,11 @@ MonoBehaviour:
     shakeMaxOffset: 1.6
     shakeDecayPerSecond: 1.2
     shakeFrequency: 8
+    shakeMaxRollDegrees: 3
     damageTrauma: 0.6
     deathTrauma: 1
+    recoilDistance: 0
+    recoilReturnSharpness: 20
   joystick: {fileID: 940171060}
   menuScreen: {fileID: 1842070545}
   hudScreen: {fileID: 1749372085}
