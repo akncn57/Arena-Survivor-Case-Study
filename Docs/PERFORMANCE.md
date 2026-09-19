@@ -67,3 +67,25 @@ expensive than Generic), animation of 65 bones each, and enemy logic.
 | 5 | Player model: moderate decimation, merged materials; rifle textures to 512 | GPU, memory |
 
 Each change is measured again with the same benchmark on the same device before moving to the next.
+
+## Step 1: optimized enemy (`v1.1.0`, commit `749ca37`)
+
+Change: the enemy prefab uses `Enemy_Optimized` (4,500 / 1,500 tri LODs, 22 bones, max 4 weights, one
+material, 1024 x 512 ASTC atlas). Details in `TECH.md` > Optimized assets. Everything else unchanged.
+
+| Metric | Reference (run 2) | Step 1 run 1 | Step 1 run 2 | Change |
+|------|------|------|------|------|
+| Average FPS | 14.6 | 49.3 | 49.4 | **x3.4** |
+| 1% low FPS | 13.1 | 29.5 | 39.2 | x3.0 |
+| Frame time avg / p99 (ms) | 68.6 / 76.4 | 20.3 / 33.9 | 20.2 / 25.5 | -71% |
+| **GPU time (ms)** | **68.6** | 19.9 | **19.9** | **-71%** |
+| CPU main thread (ms) | 17.4 | 12.4 | 12.2 | -30% |
+| Allocated memory | 119 MB | 112 MB | 112 MB | -6% |
+| APK size | 50.2 MB | 41.8 MB | | -17% |
+
+Raw results: `Benchmarks/step1_enemy_run1.json`, `Benchmarks/step1_enemy_run2.json`, `Benchmarks/step1_enemy_run2.jpg`.
+
+**Reading:** the enemy asset was the dominant GPU cost, as the reference analysis predicted. The CPU also got
+faster: 43 fewer bones per enemy to animate and fewer weights to skin. The frame time (20.2 ms) still equals the
+GPU time, so the game is still GPU-bound and about 3-4 ms short of 60 FPS (16.7 ms). Next: render settings
+(shadows, resolution, post-processing).

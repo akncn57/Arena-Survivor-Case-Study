@@ -514,3 +514,60 @@ Verified end to end in the Editor through MCP (frames stepped manually): the run
 
 **Test device:** Xiaomi Redmi Note 14 Pro (4G, model 24116RACCG), MediaTek Helio G100-Ultra (MT6789),
 Mali-G57 MC2 GPU, 8 GB RAM, 1080 x 2400 at up to 120 Hz, Android 16.
+
+## Optimized assets (`Assets/Optimized`, `Tools/Blender`)
+
+The provided models in `Assets/Models` are never modified. Optimized versions are generated from them by
+Blender scripts (Blender 5.2, run headless) and live in `Assets/Optimized`. Running a script again reproduces
+the same result, and every step is explained in the script's comments.
+
+```
+blender --background --factory-startup --python Tools/Blender/optimize_enemy.py -- Assets/Models/enemy.fbx Assets/Optimized/Enemy
+```
+
+| Script | Purpose |
+|------|------|
+| `inspect_model.py` | Triangles, vertices, bones, bone influences, materials and textures of an FBX |
+| `inspect_uv.py` | UV range and face count per material, bone influence histogram |
+| `optimize_enemy.py` | Builds the optimized enemy (below) |
+
+### Enemy
+
+| | Original `enemy.fbx` | `Enemy_Optimized.fbx` LOD0 | LOD1 |
+|------|------|------|------|
+| Triangles | 36,902 | 4,500 | 1,500 |
+| Vertices (Unity, after UV/normal splits) | 18,453 | 2,777 | 1,087 |
+| Bones | 65 | 22 | 22 |
+| Max bone influences per vertex | 6 | 4 | 4 |
+| Materials / draw calls | 2 | 1 | 1 |
+| Textures | 8 x 4096 x 4096 PNG | 2 x 1024 x 512, ASTC 6x6 on Android | (shared) |
+| File size | 100 MB FBX (textures embedded) | 0.35 MB FBX + 1.8 MB PNG | |
+
+What the script does and why:
+1. **Finger bones removed.** 40 finger bones and 3 unweighted end bones go (65 -> 22). Their vertex weights are
+   added to the hand bone first, so the hands keep their shape and follow the wrist. Fingers are a few pixels
+   on screen; animating them is pure CPU cost. Humanoid avatars do not require finger bones, so the Mixamo clips
+   still retarget.
+2. **Max 4 bone weights per vertex**, renormalized. Only 668 of 18,453 vertices had more than 4.
+3. **One material instead of two.** Both original materials used the full 0..1 UV square with separate texture
+   sets. Their UVs are squeezed into the left and right halves of one atlas, so each enemy is one draw call.
+4. **LODs by decimation** (Blender's Decimate, collapse). Names ending in `_LOD0`/`_LOD1` make Unity create the
+   LOD Group on import. Skin weights are interpolated by the decimation, so the LODs stay rigged.
+5. **Texture atlas.** Diffuse and normal maps of both materials are scaled from 4096 to 512 and placed side by
+   side (1024 x 512). An enemy covers roughly 100 x 150 pixels on a 1080p screen, so 4096 textures were far
+   beyond what can be seen. The specular maps are flat (a 4096 PNG of 58 KB) and are dropped along with the
+   glossiness maps; the material uses a constant smoothness of 0.25 instead.
+
+**Quality comparison** (rendered through MCP, same Zombie Walk pose): up close the optimized LOD0 keeps the
+silhouette, muscle detail, fingers and head shape; at the game camera's distance LOD0 and LOD1 are
+indistinguishable from each other.
+
+The optimized enemy actually looks **closer to the provided reference image** (`Assets/Models/enemy.jpg`,
+matte red skin) than the original import: the original normal maps are imported as plain color textures, which
+makes URP read wrong normals and gives the skin a bluish, glossy look. The optimized normal atlas is imported as a
+normal map. The reference build keeps the original import as it was, so the comparison stays honest.
+
+**LOD switching.** With this camera (18-28 m away, 40 degree field of view) an enemy covers 9-14 % of the screen
+height. LOD0 is used above 12 % (the closer half of the screen), LOD1 below. The Unity side is
+`Assets/Prefabs/Enemy_Optimized.prefab` (EnemyView + Animator with `AC_Enemy`, `M_Enemy` URP Lit material);
+the bootstrap references it. The original `Enemy.prefab` stays for comparisons.
