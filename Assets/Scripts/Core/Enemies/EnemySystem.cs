@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using ArenaSurvivor.Core.Combat;
+using ArenaSurvivor.Core.Spatial;
 using UnityEngine;
 using UnityEngine.Pool;
 
@@ -20,13 +21,22 @@ namespace ArenaSurvivor.Core.Enemies
         private readonly Health _target;
         private readonly ObjectPool<Enemy> _pool;
         private readonly List<Enemy> _active = new List<Enemy>();
+        private readonly SpatialGrid _grid;
+        private Vector3[] _push = new Vector3[64];
 
         /// <param name="config">Stats shared by all enemies.</param>
         /// <param name="target">The player's health; enemies in range damage it.</param>
-        public EnemySystem(EnemyConfig config, Health target)
+        /// <param name="arenaHalfSize">Half the arena width, for the neighbour grid used by separation.</param>
+        public EnemySystem(EnemyConfig config, Health target, float arenaHalfSize = 50f)
         {
             _config = config ?? throw new ArgumentNullException(nameof(config));
             _target = target ?? throw new ArgumentNullException(nameof(target));
+            if (_config.HasSeparation)
+            {
+                // Cells as large as the separation radius: every neighbour is in the 3 x 3 cells around an enemy.
+                _grid = new SpatialGrid(arenaHalfSize, _config.SeparationRadius);
+            }
+
             _pool = new ObjectPool<Enemy>(
                 createFunc: () => new Enemy(_config.MaxHealth),
                 collectionCheck: true,
@@ -35,6 +45,9 @@ namespace ArenaSurvivor.Core.Enemies
 
         public IReadOnlyList<Enemy> Active => _active;
         public int AliveCount => _active.Count;
+
+        /// <summary>Distance checks done by the last separation pass. Used by tests and profiling.</summary>
+        public int LastSeparationChecks { get; private set; }
 
         /// <summary>An enemy entered the arena. The Unity side attaches a model to it.</summary>
         public event Action<Enemy> Spawned;
@@ -121,9 +134,102 @@ namespace ArenaSurvivor.Core.Enemies
                 }
             }
 
+            if (_config.HasSeparation && _active.Count > 1)
+            {
+                ApplySeparation();
+            }
+
             // Applied after the loop: the damage may kill the player, and listeners reacting to that
             // (e.g. clearing all enemies) must not modify the list while we iterate it.
             _target.TakeDamage(damageToTarget);
+        }
+
+        /// <summary>
+        /// Pushes enemies that stand closer than the separation radius apart, so a crowd spreads around the player
+        /// instead of collapsing into one spot. Neighbours come from the grid, so each enemy is compared only with
+        /// the few enemies in the 3 x 3 cells around it rather than with every other enemy (O(n) instead of O(n^2)).
+        ///
+        /// This is a position correction, not a force: each overlapping pair moves apart by half of its overlap
+        /// (times the stiffness). A force would have to be tuned against the walking speed, and in a dense crowd the
+        /// enemies walking in from behind would still squeeze the front rows together; a position correction removes
+        /// the overlap within a few frames whatever the speed. All corrections are computed first and applied
+        /// afterwards, so the result does not depend on list order.
+        /// </summary>
+        private void ApplySeparation()
+        {
+            int count = _active.Count;
+            if (_push.Length < count)
+            {
+                _push = new Vector3[Math.Max(count, _push.Length * 2)];
+            }
+
+            _grid.Clear();
+            for (int i = 0; i < count; i++)
+            {
+                _grid.Insert(i, _active[i].Position);
+            }
+
+            float radius = _config.SeparationRadius;
+            float radiusSqr = radius * radius;
+            int checks = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 position = _active[i].Position;
+                Vector3 push = Vector3.zero;
+
+                int minX = _grid.CellCoord(position.x - radius), maxX = _grid.CellCoord(position.x + radius);
+                int minZ = _grid.CellCoord(position.z - radius), maxZ = _grid.CellCoord(position.z + radius);
+
+                for (int cz = minZ; cz <= maxZ; cz++)
+                {
+                    for (int cx = minX; cx <= maxX; cx++)
+                    {
+                        for (int j = _grid.First(cx, cz); j != -1; j = _grid.Next(j))
+                        {
+                            if (j == i)
+                            {
+                                continue;
+                            }
+
+                            checks++;
+                            Vector3 away = position - _active[j].Position;
+                            away.y = 0f;
+                            float distanceSqr = away.sqrMagnitude;
+                            if (distanceSqr >= radiusSqr)
+                            {
+                                continue;
+                            }
+
+                            if (distanceSqr < 1e-8f)
+                            {
+                                // Exactly on top of each other: pick a stable direction from the index pair.
+                                float angle = (i * 2.399963f) - (j * 0.5f);
+                                push += new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * (radius * 0.5f);
+                                continue;
+                            }
+
+                            float distance = Mathf.Sqrt(distanceSqr);
+                            // Half the overlap: the other enemy of the pair moves the other half.
+                            push += away / distance * ((radius - distance) * 0.5f);
+                        }
+                    }
+                }
+
+                _push[i] = push;
+            }
+
+            float stiffness = _config.SeparationStiffness;
+            for (int i = 0; i < count; i++)
+            {
+                if (_push[i].sqrMagnitude > 0f)
+                {
+                    // Capped at half the radius so a very dense crowd cannot fling an enemy across the screen.
+                    _active[i].Position += Vector3.ClampMagnitude(_push[i] * stiffness, radius * 0.5f);
+                }
+            }
+
+            LastSeparationChecks = checks;
         }
 
         /// <summary>Damages an enemy. Kills and despawns it when its health runs out.</summary>

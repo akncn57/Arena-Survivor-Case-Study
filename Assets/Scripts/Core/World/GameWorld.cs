@@ -27,7 +27,7 @@ namespace ArenaSurvivor.Core.World
 
             Session = new GameSession();
             Player = new PlayerCharacter(player, world.ArenaHalfSize);
-            Enemies = new EnemySystem(enemy, Player.Health);
+            Enemies = new EnemySystem(enemy, Player.Health, world.ArenaHalfSize);
             Projectiles = new ProjectileSystem(Enemies, world.ProjectileHitRadius);
             Weapon = new Weapon(weapon, Projectiles);
             _spawner = new WaveSpawner(Enemies, world.SpawnRadius, world.ArenaHalfSize, random);

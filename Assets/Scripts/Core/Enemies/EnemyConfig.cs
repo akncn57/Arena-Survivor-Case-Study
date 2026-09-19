@@ -24,11 +24,18 @@ namespace ArenaSurvivor.Core.Enemies
         [Tooltip("Distance to the player at which the enemy stops and attacks.")]
         [SerializeField, Min(0.1f)] private float attackRange = 1.2f;
 
+        [Tooltip("Enemies closer than this push each other apart. 0 disables separation.")]
+        [SerializeField, Min(0f)] private float separationRadius;
+
+        [Tooltip("Fraction of the overlap between two enemies resolved each frame (0 = off, 1 = fully).")]
+        [SerializeField, Range(0f, 1f)] private float separationStiffness;
+
         public EnemyConfig()
         {
         }
 
-        public EnemyConfig(int maxHealth, float moveSpeed, int contactDamage, float attackInterval, float attackRange)
+        public EnemyConfig(int maxHealth, float moveSpeed, int contactDamage, float attackInterval, float attackRange,
+            float separationRadius = 0f, float separationStiffness = 0f)
         {
             if (maxHealth < 1 || contactDamage < 1)
             {
@@ -45,6 +52,15 @@ namespace ArenaSurvivor.Core.Enemies
             this.contactDamage = contactDamage;
             this.attackInterval = attackInterval;
             this.attackRange = attackRange;
+
+            if (separationRadius < 0f || separationStiffness < 0f || separationStiffness > 1f)
+            {
+                throw new ArgumentOutOfRangeException(nameof(separationRadius),
+                    "Separation radius cannot be negative; stiffness must be in [0, 1].");
+            }
+
+            this.separationRadius = separationRadius;
+            this.separationStiffness = separationStiffness;
         }
 
         public int MaxHealth => maxHealth;
@@ -52,5 +68,8 @@ namespace ArenaSurvivor.Core.Enemies
         public int ContactDamage => contactDamage;
         public float AttackInterval => attackInterval;
         public float AttackRange => attackRange;
+        public float SeparationRadius => separationRadius;
+        public float SeparationStiffness => separationStiffness;
+        public bool HasSeparation => separationRadius > 0f && separationStiffness > 0f;
     }
 }
