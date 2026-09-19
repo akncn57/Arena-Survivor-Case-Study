@@ -571,3 +571,25 @@ normal map. The reference build keeps the original import as it was, so the comp
 height. LOD0 is used above 12 % (the closer half of the screen), LOD1 below. The Unity side is
 `Assets/Prefabs/Enemy_Optimized.prefab` (EnemyView + Animator with `AC_Enemy`, `M_Enemy` URP Lit material);
 the bootstrap references it. The original `Enemy.prefab` stays for comparisons.
+
+### Render settings (Mobile quality level only)
+
+Changed on `Mobile_RPAsset` / `Mobile_Renderer`; the PC quality level is untouched.
+
+| Setting | Before | After | Why |
+|------|------|------|------|
+| Post-processing (renderer) | On (Tonemapping Neutral, Bloom 0.25, Vignette 0.2) | Off | Several full-screen passes per frame. Bloom's threshold of 1 is barely reached in this scene, so it cost GPU time for almost no visible effect. |
+| HDR | On | Off | An HDR color buffer is twice the bandwidth of LDR; with post-processing off nothing needs it. |
+| Shadow distance | 50 m | 35 m | The camera sees at most about 35 m; shadows beyond that were never visible. |
+| Enemy shadows | Every enemy rendered a second time into the shadow map | Off, replaced by a blob shadow | See below. |
+
+**Blob shadows.** Real-time shadows for 150 skinned meshes mean drawing (and skinning) every enemy twice. Each
+enemy now has a `BlobShadow` child: a quad with a 64 x 64 soft round texture (`Assets/Optimized/Shared`),
+unlit, alpha-blended, GPU instanced. Turning shadows off only on the far LOD was tried first and rejected: the
+shadows then disappeared at the LOD boundary across the upper half of the screen, which looked inconsistent.
+The player keeps its real shadow.
+
+Lesson learned while doing it through MCP: setting a URP material to transparent by assigning its properties
+(`_Surface`, blend factors, keywords) was not enough and the quad stayed invisible; the material had to be set up
+with URP's own `BaseShaderGUI.SetupMaterialBlendMode`, which the Inspector calls. The problem was found by
+rendering the quad with an opaque red material first (it drew) and then the real one (it did not).
