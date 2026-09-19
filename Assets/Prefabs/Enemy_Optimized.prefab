@@ -217,7 +217,7 @@ PrefabInstance:
     - target: {fileID: 8336266023874818701, guid: 428f0f39beea22e4f89e305bfa06aae3, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: fa368b0bb6ce20a4fbd8e1989ab72266, type: 2}
+      objectReference: {fileID: 2100000, guid: 4961b1c2fa834bf4ca146cbd0d3cfe32, type: 2}
     - target: {fileID: 8718230235247405220, guid: 428f0f39beea22e4f89e305bfa06aae3, type: 3}
       propertyPath: m_CastShadows
       value: 0
@@ -225,7 +225,7 @@ PrefabInstance:
     - target: {fileID: 8718230235247405220, guid: 428f0f39beea22e4f89e305bfa06aae3, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: fa368b0bb6ce20a4fbd8e1989ab72266, type: 2}
+      objectReference: {fileID: 2100000, guid: 4961b1c2fa834bf4ca146cbd0d3cfe32, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
