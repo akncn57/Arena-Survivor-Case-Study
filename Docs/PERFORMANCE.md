@@ -1,112 +1,119 @@
-# Performance
+# Performans
 
-Measurements of the reference build (before optimization) and, later, the optimized build,
-taken under the same conditions with the in-game benchmark (see `TECH.md` > Benchmark mode).
+Referans build'in (optimizasyon öncesi) ve optimize build'in ölçümleri. Hepsi oyun içindeki benchmark ile aynı
+koşullarda alındı (bkz. `TECH.md` > Benchmark modu).
 
-## Test conditions
+## Test koşulları
 
 | | |
 |------|------|
-| Device | Xiaomi Redmi Note 14 Pro (4G, model 24116RACCG) |
+| Cihaz | Xiaomi Redmi Note 14 Pro (4G, model 24116RACCG) |
 | SoC / GPU | MediaTek Helio G100-Ultra (MT6789) / Mali-G57 MC2 |
-| RAM / OS | 8 GB / Android 16 (HyperOS 3) |
-| Screen | 2400 x 1080, landscape |
-| Graphics API | Vulkan |
-| Build | Release (not development), IL2CPP, ARM64, URP "Mobile" quality level |
-| Scenario | Benchmark button: seed 12345, 150 enemy cap, invulnerable idle player, 10 s warm-up + 60 s measured, 120 FPS cap |
-| Procedure | Phone on charger, screen on, app freshly started, benchmark run twice in a row |
+| RAM / İşletim sistemi | 8 GB / Android 16 (HyperOS 3) |
+| Ekran | 2400 x 1080, yatay |
+| Grafik API'si | Vulkan |
+| Build | Release (development değil), IL2CPP, ARM64, URP "Mobile" kalite seviyesi |
+| Senaryo | BENCHMARK butonu: seed 12345, 150 düşman sınırı, hasar almayan ve yerinde duran oyuncu, 10 sn ısınma + 60 sn ölçüm, 120 FPS sınırı |
+| Prosedür | Telefon şarjda, ekran açık, uygulama yeni başlatılmış, benchmark arka arkaya iki kez |
 
-Raw results: `Benchmarks/reference_run1.json`, `Benchmarks/reference_run2.json`, screenshot `Benchmarks/reference_run2.jpg`.
+Ham sonuçlar: `Benchmarks/reference_run1.json`, `Benchmarks/reference_run2.json`, ekran görüntüsü `Benchmarks/reference_run2.jpg`.
 
-## Reference build (`v1.0-reference`)
+## Referans build (`v1.0-reference`)
 
-Original models, textures and Humanoid Animators, no optimization.
+Orijinal modeller, dokular ve Humanoid Animator'lar; optimizasyon yok.
 
-| Metric | Run 1 | Run 2 |
+| Ölçüm | Koşu 1 | Koşu 2 |
 |------|------|------|
-| Average FPS | 14.5 | 14.6 |
-| 1% low FPS | 10.7 | 13.1 |
-| Frame time avg / p99 / max (ms) | 69.0 / 93.4 / 161.3 | 68.6 / 76.4 / 169.8 |
-| **GPU time per frame (ms)** | **69.0** | **68.6** |
-| CPU main thread per frame (ms) | 17.4 | 17.4 |
-| Enemies alive (avg of 150 cap) | 149.8 | 149.7 |
-| Kills | 51 | 53 |
-| Allocated memory | 119 MB | 119 MB |
+| Ortalama FPS | 14,5 | 14,6 |
+| 1% low FPS | 10,7 | 13,1 |
+| Frame süresi ort. / p99 / en fazla (ms) | 69,0 / 93,4 / 161,3 | 68,6 / 76,4 / 169,8 |
+| **Frame başına GPU süresi (ms)** | **69,0** | **68,6** |
+| Frame başına CPU ana thread (ms) | 17,4 | 17,4 |
+| Canlı düşman (150 sınırında ortalama) | 149,8 | 149,7 |
+| Kill | 51 | 53 |
+| Ayrılmış bellek | 119 MB | 119 MB |
 
-The two runs agree within about 1% on average FPS, GPU and CPU time. Spawn positions are identical (fixed
-seed); kill counts differ slightly because the simulation advances with the real frame time, so bullet hits
-land a few milliseconds apart between runs. The load itself (enemies alive) is the same.
+İki koşu ortalama FPS, GPU ve CPU süresinde yaklaşık %1 içinde tutarlı. Spawn konumları aynı (sabit seed); kill
+sayıları biraz farklı, çünkü simülasyon gerçek frame süresiyle ilerliyor ve mermi isabetleri koşular arasında birkaç
+milisaniye kayıyor. Yükün kendisi (canlı düşman sayısı) aynı.
 
-### Analysis
+### Analiz
 
-**The game is GPU-bound.** The frame time equals the GPU time (about 69 ms), while the CPU main thread needs
-only about 17 ms. Speeding up the CPU would not raise the frame rate until the GPU cost comes down.
+**Oyun GPU'ya takılıyor.** Frame süresi GPU süresine eşit (yaklaşık 69 ms), CPU ana thread ise sadece yaklaşık 17 ms
+harcıyor. GPU maliyeti düşmeden CPU'yu hızlandırmak FPS'i artırmaz.
 
-Likely GPU costs, in order of expected impact:
+Olası GPU maliyetleri, beklenen etkiye göre sıralı:
 
-1. **Geometry.** 150 enemies x 36,902 triangles is about 5.5 million triangles per frame, drawn a second time
-   for the shadow map. Far beyond what a Mali-G57 MC2 handles at 60 FPS.
-2. **Skinning.** Every enemy deforms an 18,453-vertex mesh with 65 bones each frame. The work scales with the
-   vertex count, so a lower-poly mesh cuts it proportionally; fewer bones help further.
-3. **Textures.** Eight 4096 x 4096 textures (diffuse, normal, specular, glossiness for two materials) cost memory
-   bandwidth, which is scarce on mobile GPUs. A single 1024 (or smaller) atlas with ASTC compression is enough
-   at the size enemies appear on screen.
-4. **Shadows and materials.** Shadow casting for 150 skinned meshes and two materials (two draw calls) per enemy.
+1. **Geometri.** 150 düşman x 36.902 üçgen = frame başına yaklaşık 5,5 milyon üçgen, gölge haritası için bir kez
+   daha çiziliyor. Mali-G57 MC2'nin 60 FPS'te kaldırabileceğinin çok ötesinde.
+2. **Skinning.** Her düşman her frame 65 kemikle 18.453 vertex'lik bir mesh'i deforme ediyor. İş vertex sayısıyla
+   ölçeklendiği için düşük poli mesh onu orantılı olarak azaltır; daha az kemik de ayrıca yardımcı olur.
+3. **Dokular.** Sekiz 4096 x 4096 doku (iki materyal için diffuse, normal, specular, glossiness) mobil GPU'larda kıt
+   olan bellek bant genişliğini harcıyor. Düşmanların ekrandaki boyutunda ASTC ile sıkıştırılmış tek bir 1024 (ya da
+   daha küçük) atlas yeterli.
+4. **Gölgeler ve materyaller.** 150 skinned mesh için gölge ve düşman başına iki materyal (iki draw call).
 
-On the CPU side (the next bottleneck once the GPU cost drops): 150 Humanoid Animators (retargeting is more
-expensive than Generic), animation of 65 bones each, and enemy logic.
+CPU tarafında (GPU maliyeti düşünce sıradaki darboğaz): 150 Humanoid Animator (retargeting Generic'ten pahalı),
+her birinde 65 kemiğin animasyonu ve düşman mantığı.
 
-### Optimization plan (prioritized by expected impact)
+### Optimizasyon planı (beklenen etkiye göre öncelikli)
 
-| # | Change | Targets |
-|------|------|------|
-| 1 | Enemy mesh decimated to about 4-5k triangles (LOD0) plus a lower LOD, created in Blender as new files | GPU geometry, skinning |
-| 2 | Enemy textures merged and reduced to one 1024 (or 512) atlas, ASTC compressed, one material | GPU bandwidth, draw calls, memory |
-| 3 | Shadow settings for enemies (cheaper or no shadow casting at distance) | GPU shadow pass |
-| 4 | Animator: fewer bones (strip fingers), cheaper culling mode, possibly Generic clips | CPU animation |
-| 5 | Player model: moderate decimation, merged materials; rifle textures to 512 | GPU, memory |
+| # | Değişiklik | Hedef | Durum |
+|------|------|------|------|
+| 1 | Düşman mesh'i Blender'da yeni dosya olarak yaklaşık 4-5 bin üçgene (LOD0) indirilir, bir alt LOD eklenir | GPU geometri, skinning | Yapıldı (Adım 1) |
+| 2 | Düşman dokuları tek bir 1024 (ya da 512) atlasa birleştirilir, ASTC, tek materyal | GPU bant genişliği, draw call, bellek | Yapıldı (Adım 1) |
+| 3 | Düşman gölgeleri (daha ucuz ya da uzakta gölge yok) | GPU gölge geçişi | Yapıldı (Adım 2, blob shadow) |
+| 4 | Animator: daha az kemik (parmaklar atılır), daha ucuz culling modu, belki Generic klipler | CPU animasyon | Kemikler yapıldı (Adım 1); gerisi ölçüme göre |
+| 5 | Oyuncu modeli: orta seviye decimation, birleştirilmiş materyaller; rifle dokuları 512 | GPU, bellek | Yapıldı (Adım 3, ölçüm Adım 4 ile birlikte) |
 
-Each change is measured again with the same benchmark on the same device before moving to the next.
+Her değişiklik bir sonrakine geçmeden önce aynı cihazda aynı benchmark ile tekrar ölçülür.
 
-## Step 1: optimized enemy (`v1.1.0`, commit `749ca37`)
+## Adım 1: optimize düşman (`v1.1.0`, commit `749ca37`)
 
-Change: the enemy prefab uses `Enemy_Optimized` (4,500 / 1,500 tri LODs, 22 bones, max 4 weights, one
-material, 1024 x 512 ASTC atlas). Details in `TECH.md` > Optimized assets. Everything else unchanged.
+Değişiklik: düşman prefab'ı `Enemy_Optimized`'ı kullanıyor (4.500 / 1.500 üçgenlik LOD'lar, 22 kemik, en fazla 4
+ağırlık, tek materyal, 1024 x 512 ASTC atlas). Ayrıntılar `TECH.md` > Optimize asset'ler. Başka hiçbir şey değişmedi.
 
-| Metric | Reference (run 2) | Step 1 run 1 | Step 1 run 2 | Change |
+| Ölçüm | Referans (koşu 2) | Adım 1 koşu 1 | Adım 1 koşu 2 | Değişim |
 |------|------|------|------|------|
-| Average FPS | 14.6 | 49.3 | 49.4 | **x3.4** |
-| 1% low FPS | 13.1 | 29.5 | 39.2 | x3.0 |
-| Frame time avg / p99 (ms) | 68.6 / 76.4 | 20.3 / 33.9 | 20.2 / 25.5 | -71% |
-| **GPU time (ms)** | **68.6** | 19.9 | **19.9** | **-71%** |
-| CPU main thread (ms) | 17.4 | 12.4 | 12.2 | -30% |
-| Allocated memory | 119 MB | 112 MB | 112 MB | -6% |
-| APK size | 50.2 MB | 41.8 MB | | -17% |
+| Ortalama FPS | 14,6 | 49,3 | 49,4 | **x3,4** |
+| 1% low FPS | 13,1 | 29,5 | 39,2 | x3,0 |
+| Frame süresi ort. / p99 (ms) | 68,6 / 76,4 | 20,3 / 33,9 | 20,2 / 25,5 | -%71 |
+| **GPU süresi (ms)** | **68,6** | 19,9 | **19,9** | **-%71** |
+| CPU ana thread (ms) | 17,4 | 12,4 | 12,2 | -%30 |
+| Ayrılmış bellek | 119 MB | 112 MB | 112 MB | -%6 |
+| APK boyutu | 50,2 MB | 41,8 MB | | -%17 |
 
-Raw results: `Benchmarks/step1_enemy_run1.json`, `Benchmarks/step1_enemy_run2.json`, `Benchmarks/step1_enemy_run2.jpg`.
+Ham sonuçlar: `Benchmarks/step1_enemy_run1.json`, `Benchmarks/step1_enemy_run2.json`, `Benchmarks/step1_enemy_run2.jpg`.
 
-**Reading:** the enemy asset was the dominant GPU cost, as the reference analysis predicted. The CPU also got
-faster: 43 fewer bones per enemy to animate and fewer weights to skin. The frame time (20.2 ms) still equals the
-GPU time, so the game is still GPU-bound and about 3-4 ms short of 60 FPS (16.7 ms). Next: render settings
-(shadows, resolution, post-processing).
+**Yorum:** referans analizinin öngördüğü gibi en büyük GPU maliyeti düşman asset'iydi. CPU da hızlandı: düşman başına
+43 kemik daha az canlandırılıyor ve daha az ağırlık skin'leniyor. Frame süresi (20,2 ms) hâlâ GPU süresine eşit; oyun
+hâlâ GPU'ya takılıyor ve 60 FPS'e (16,7 ms) yaklaşık 3-4 ms uzak. Sıradaki: render ayarları (gölgeler, çözünürlük,
+post-processing).
 
-## Step 2: mobile render settings (`v1.1.1`, commit `7cafdc1`)
+## Adım 2: mobil render ayarları (`v1.1.1`, commit `7cafdc1`)
 
-Change (Mobile quality level only): post-processing off, HDR off, shadow distance 35 m, enemies use a blob shadow
-instead of casting real-time shadows. Details in `TECH.md` > Render settings.
+Değişiklik (sadece Mobile kalite seviyesi): post-processing kapalı, HDR kapalı, gölge mesafesi 35 m, düşmanlar gerçek
+zamanlı gölge yerine blob shadow kullanıyor. Ayrıntılar `TECH.md` > Render ayarları.
 
-| Metric | Reference | Step 1 | Step 2 run 1 | Step 2 run 2 |
+| Ölçüm | Referans | Adım 1 | Adım 2 koşu 1 | Adım 2 koşu 2 |
 |------|------|------|------|------|
-| Average FPS | 14.6 | 49.4 | 78.3 | **78.3** |
-| 1% low FPS | 13.1 | 39.2 | 58.7 | **58.7** |
-| Frame time avg / p99 / max (ms) | 68.6 / 76.4 / 169.8 | 20.2 / 25.5 / 42.5 | 12.8 / 17.0 / 34.0 | **12.8 / 17.0 / 25.5** |
-| GPU time (ms) | 68.6 | 19.9 | 12.5 | **12.6** |
-| CPU main thread (ms) | 17.4 | 12.2 | 10.3 | **10.4** |
-| Allocated memory | 119 MB | 112 MB | 112 MB | 112 MB |
+| Ortalama FPS | 14,6 | 49,4 | 78,3 | **78,3** |
+| 1% low FPS | 13,1 | 39,2 | 58,7 | **58,7** |
+| Frame süresi ort. / p99 / en fazla (ms) | 68,6 / 76,4 / 169,8 | 20,2 / 25,5 / 42,5 | 12,8 / 17,0 / 34,0 | **12,8 / 17,0 / 25,5** |
+| GPU süresi (ms) | 68,6 | 19,9 | 12,5 | **12,6** |
+| CPU ana thread (ms) | 17,4 | 12,2 | 10,3 | **10,4** |
+| Ayrılmış bellek | 119 MB | 112 MB | 112 MB | 112 MB |
 
-Raw results: `Benchmarks/step2_render_run1.json`, `Benchmarks/step2_render_run2.json`, `Benchmarks/step2_render_run2.jpg`.
+Ham sonuçlar: `Benchmarks/step2_render_run1.json`, `Benchmarks/step2_render_run2.json`, `Benchmarks/step2_render_run2.jpg`.
 
-**Reading:** removing post-processing, HDR and 150 shadow-casting skinned meshes cut another 7 ms of GPU time.
-The 60 FPS target is met: the average frame takes 12.8 ms of the 16.7 ms budget, and the 1% low is at 58.7 FPS
-with the benchmark's 120 FPS cap (normal play is capped at 60). CPU (10.4 ms) and GPU (12.6 ms) are now close,
-so there is no single dominant bottleneck left. Overall: **5.4x the reference frame rate**.
+**Yorum:** post-processing'i, HDR'yi ve gölge atan 150 skinned mesh'i kaldırmak GPU süresinden 7 ms daha kazandırdı.
+60 FPS hedefine ulaşıldı: ortalama frame 16,7 ms'lik bütçenin 12,8 ms'ini kullanıyor ve 1% low, benchmark'ın 120 FPS
+sınırında 58,7 FPS (normal oyun 60'ta kilitli). CPU (10,4 ms) ve GPU (12,6 ms) artık birbirine yakın; tek bir baskın
+darboğaz kalmadı. Toplamda: **referans FPS'inin 5,4 katı**.
+
+## Adım 3: optimize oyuncu ve rifle dokuları (commit `46c3046`)
+
+Değişiklik: oyuncu `Player_Optimized` (19.450 -> 7.999 üçgen, 2 mesh -> 1, 3 materyal slotu -> 2, dokular 512),
+rifle dokuları 2048 -> 512. Ayrıntılar `TECH.md` > Optimize asset'ler > Oyuncu / Rifle.
+
+Tek bir karakter olduğu için ayrıca ölçülmedi; etkisinin küçük olması bekleniyor. Adım 4 ile birlikte ölçülecek.
