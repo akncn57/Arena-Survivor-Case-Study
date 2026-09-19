@@ -201,7 +201,11 @@ PrefabInstance:
     - target: {fileID: 5866666021909216657, guid: 428f0f39beea22e4f89e305bfa06aae3, type: 3}
       propertyPath: m_Controller
       value: 
-      objectReference: {fileID: 9100000, guid: aeaa1227ce059ac4da05563479dadf28, type: 2}
+      objectReference: {fileID: 9100000, guid: 1416d987a7b55984aaef87607415d692, type: 2}
+    - target: {fileID: 5866666021909216657, guid: 428f0f39beea22e4f89e305bfa06aae3, type: 3}
+      propertyPath: m_CullingMode
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 5866666021909216657, guid: 428f0f39beea22e4f89e305bfa06aae3, type: 3}
       propertyPath: m_ApplyRootMotion
       value: 0
