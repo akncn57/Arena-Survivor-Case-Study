@@ -89,3 +89,24 @@ Raw results: `Benchmarks/step1_enemy_run1.json`, `Benchmarks/step1_enemy_run2.js
 faster: 43 fewer bones per enemy to animate and fewer weights to skin. The frame time (20.2 ms) still equals the
 GPU time, so the game is still GPU-bound and about 3-4 ms short of 60 FPS (16.7 ms). Next: render settings
 (shadows, resolution, post-processing).
+
+## Step 2: mobile render settings (`v1.1.1`, commit `7cafdc1`)
+
+Change (Mobile quality level only): post-processing off, HDR off, shadow distance 35 m, enemies use a blob shadow
+instead of casting real-time shadows. Details in `TECH.md` > Render settings.
+
+| Metric | Reference | Step 1 | Step 2 run 1 | Step 2 run 2 |
+|------|------|------|------|------|
+| Average FPS | 14.6 | 49.4 | 78.3 | **78.3** |
+| 1% low FPS | 13.1 | 39.2 | 58.7 | **58.7** |
+| Frame time avg / p99 / max (ms) | 68.6 / 76.4 / 169.8 | 20.2 / 25.5 / 42.5 | 12.8 / 17.0 / 34.0 | **12.8 / 17.0 / 25.5** |
+| GPU time (ms) | 68.6 | 19.9 | 12.5 | **12.6** |
+| CPU main thread (ms) | 17.4 | 12.2 | 10.3 | **10.4** |
+| Allocated memory | 119 MB | 112 MB | 112 MB | 112 MB |
+
+Raw results: `Benchmarks/step2_render_run1.json`, `Benchmarks/step2_render_run2.json`, `Benchmarks/step2_render_run2.jpg`.
+
+**Reading:** removing post-processing, HDR and 150 shadow-casting skinned meshes cut another 7 ms of GPU time.
+The 60 FPS target is met: the average frame takes 12.8 ms of the 16.7 ms budget, and the 1% low is at 58.7 FPS
+with the benchmark's 120 FPS cap (normal play is capped at 60). CPU (10.4 ms) and GPU (12.6 ms) are now close,
+so there is no single dominant bottleneck left. Overall: **5.4x the reference frame rate**.
