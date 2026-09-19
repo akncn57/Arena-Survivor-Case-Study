@@ -63,7 +63,7 @@ her birinde 65 kemiğin animasyonu ve düşman mantığı.
 | 1 | Düşman mesh'i Blender'da yeni dosya olarak yaklaşık 4-5 bin üçgene (LOD0) indirilir, bir alt LOD eklenir | GPU geometri, skinning | Yapıldı (Adım 1) |
 | 2 | Düşman dokuları tek bir 1024 (ya da 512) atlasa birleştirilir, ASTC, tek materyal | GPU bant genişliği, draw call, bellek | Yapıldı (Adım 1) |
 | 3 | Düşman gölgeleri (daha ucuz ya da uzakta gölge yok) | GPU gölge geçişi | Yapıldı (Adım 2, blob shadow) |
-| 4 | Animator: daha az kemik (parmaklar atılır), daha ucuz culling modu, belki Generic klipler | CPU animasyon | Kemikler yapıldı (Adım 1); gerisi ölçüme göre |
+| 4 | Animator: daha az kemik (parmaklar atılır), daha ucuz culling modu, belki Generic klipler | CPU animasyon | Yapıldı (kemikler Adım 1, gerisi Adım 6) |
 | 5 | Oyuncu modeli: orta seviye decimation, birleştirilmiş materyaller; rifle dokuları 512 | GPU, bellek | Yapıldı (Adım 3, ölçüm Adım 4 ile birlikte) |
 
 Her değişiklik bir sonrakine geçmeden önce aynı cihazda aynı benchmark ile tekrar ölçülür.
@@ -172,3 +172,29 @@ kalıyor. Referansa göre **5,0 kat** (14,6 -> 73,5 FPS), üstelik ekrana yayıl
 
 Not: dosyalar çekilirken bir önceki adımın sonucu yanlışlıkla bu adımın 1. koşusu gibi adlandırılmıştı; JSON içindeki
 sürüm ve tarih alanlarından fark edilip silindi.
+
+## Adım 6: düşman animasyonu (`v1.1.4`, commit `6200aa6`)
+
+Değişiklik (ayrıntılar `TECH.md` > Animasyon optimizasyonu):
+- Humanoid klipler editörde bir kez düşman iskeletine **Generic klip olarak pişirildi**; oyunda retargeting yapılmıyor.
+- **Optimize Game Objects:** düşman kemikleri GameObject değil (153 düşman için 3.978 -> 459 Transform).
+- **Cull Completely:** ekran dışındaki düşmanların animasyonu hesaplanmıyor.
+
+Editörde 150 düşmanla yapılan A/B ölçümü (masaüstü CPU, sadece oran için): Animator güncellemesi frame başına
+2,33 ms -> 1,07 ms (-%54). Optimize Game Objects tek başına editörde ölçülebilir fark vermedi.
+
+| Ölçüm | Adım 5 | Adım 6 koşu 1 | Adım 6 koşu 2 |
+|------|------|------|------|
+| Ortalama FPS | 73,5 | 74,5 | **74,2** |
+| 1% low FPS | 58,7 | 58,7 | **58,7** |
+| Frame süresi ort. / p99 / en fazla (ms) | 13,6 / 17,0 / 34,0 | 13,4 / 17,0 / 42,4 | **13,5 / 17,0 / 25,5** |
+| GPU süresi (ms) | 13,4 | 13,2 | **13,2** |
+| **CPU ana thread (ms)** | **9,9** | **7,8** | **8,4** |
+| Ayrılmış bellek | 111 MB | 106 MB | 107 MB |
+
+Ham sonuçlar: `Benchmarks/step6_animation_run1.json`, `Benchmarks/step6_animation_run2.json`, `Benchmarks/step6_animation_run2.jpg`.
+
+**Yorum:** CPU ana thread süresi %15-21 düştü (referansta 17,4 ms idi, şimdi yaklaşık 8 ms); kemik GameObject'leri
+kalktığı için bellek 4-5 MB azaldı. FPS neredeyse değişmedi, çünkü frame süresi yine GPU süresine eşit: oyun GPU'ya
+takılı. CPU kazancı FPS'e değil, cihazın daha az yüklenmesine (ısınma, pil) ve CPU'ya ileride eklenecek iş için paya
+dönüşüyor.

@@ -657,3 +657,31 @@ MCP ile yaparken öğrenilen ders: bir URP materyalini özelliklerini (`_Surface
 şeffaf yapmak yetmedi, quad görünmez kaldı. Materyalin URP'nin Inspector'ın da çağırdığı
 `BaseShaderGUI.SetupMaterialBlendMode` fonksiyonuyla kurulması gerekti. Sorun, quad önce opak kırmızı bir materyalle
 render edilerek (çizildi) sonra gerçek materyalle (çizilmedi) ayrıştırıldı.
+
+### Animasyon optimizasyonu (düşman)
+
+Ölçüm önce yapıldı: editörde benchmark sahnesinde (150 düşman) Animator'ların güncellenmesi, Transform sayısı ve tam
+frame süresi MCP ile ölçüldü; her değişiklik aynı ölçümle karşılaştırıldı. Editör rakamları telefonla aynı değil,
+sadece hangi değişikliğin işe yaradığını ayırt etmek için kullanıldı; kesin sonuç telefondaki benchmark'tan geldi.
+
+| Değişiklik | Editör ölçümü (150 düşman) |
+|------|------|
+| Başlangıç (Humanoid, kemikler GameObject) | Animator 2,33 ms, 3.978 Transform, frame 3,76 ms |
+| + Optimize Game Objects | Animator 2,33 ms, **459 Transform**, frame 3,62 ms |
+| + Generic pişirilmiş klipler | **Animator 1,07 ms (-%54)**, frame 3,28 ms |
+
+- **Generic klipler (`GenericClipBaker`, `Assets/Scripts/Editor`).** Humanoid Animator her frame, her düşman için klibi
+  ortak "insan" formatından iskelete çevirir (retargeting). Menüdeki **Tools > Arena Survivor > Bake Enemy Generic
+  Clips** bu çeviriyi editörde bir kez yapar: Humanoid klip 30 FPS ile optimize düşmanın kemikleri geri açılmış geçici
+  bir kopyasına örneklenir ve her kemiğin yerel konumu ve dönüşü `GameObjectRecorder` ile yeni bir klibe kaydedilir
+  (ölçek eğrileri atılır; 22 kemik x 7 eğri = 154 eğri). `AC_Enemy_Generic` aynı durumları bu kliplerle kullanır.
+  Pozların Humanoid oynatmayla aynı olduğu iki farklı anda yan yana render alınarak doğrulandı. Oyuncu Humanoid kaldı
+  (tek karakter, rifle el kemiğine bağlı).
+- **Optimize Game Objects.** Düşman modelinin import ayarı. Kemikler için GameObject/Transform oluşturulmaz; animasyon
+  doğrudan skinning matrislerine yazılır. Düşmana hiçbir şey bağlı olmadığı için güvenle açılabildi. Bir yan etkisi:
+  editörde `AnimationMode` ile poz örneklemek kemik objeleri olmadan çalışmıyor; karşılaştırma render'larında ve
+  pişirme aracında kopyanın kemikleri `AnimatorUtility.DeoptimizeTransformHierarchy` ile geri açılıyor.
+- **Cull Completely.** Ekran dışındaki düşmanların animasyonu hiç hesaplanmaz. Benchmark'ta düşmanların çoğu ekranda
+  olduğu için kazancı küçük, normal oyunda spawn halkasından yürüyerek gelenler için geçerli.
+
+Telefondaki sonuç (`PERFORMANCE.md` > Adım 6): CPU ana thread 9,9 ms -> 7,8-8,4 ms, bellek 4-5 MB daha az.
