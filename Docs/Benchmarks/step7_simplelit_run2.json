@@ -1,0 +1,23 @@
+{
+    "appVersion": "1.1.5",
+    "date": "2026-09-19 13:48:52",
+    "device": "Xiaomi 24116RACCG",
+    "gpu": "Mali-G57 MC2",
+    "os": "Android OS 16 / API-36 (BP2A.250605.031.A3/OS3.0.302.0.WOFTRXM)",
+    "graphicsApi": "Vulkan",
+    "targetFrameRate": 120,
+    "measuredSeconds": 60.0003776550293,
+    "frames": 5030,
+    "averageFps": 83.83280181884766,
+    "onePercentLowFps": 58.75040817260742,
+    "averageFrameMs": 11.928504943847657,
+    "p99FrameMs": 17.02115821838379,
+    "maxFrameMs": 25.503862380981447,
+    "averageCpuMainThreadMs": 8.194401741027832,
+    "averageGpuMs": 11.673381805419922,
+    "maxAliveEnemies": 150,
+    "averageAliveEnemies": 149.76004028320313,
+    "kills": 61,
+    "allocatedMemoryMB": 107,
+    "gcHeapMB": 4
+}

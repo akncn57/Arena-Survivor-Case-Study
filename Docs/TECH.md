@@ -685,3 +685,13 @@ sadece hangi değişikliğin işe yaradığını ayırt etmek için kullanıldı
   olduğu için kazancı küçük, normal oyunda spawn halkasından yürüyerek gelenler için geçerli.
 
 Telefondaki sonuç (`PERFORMANCE.md` > Adım 6): CPU ana thread 9,9 ms -> 7,8-8,4 ms, bellek 4-5 MB daha az.
+
+### Düşman materyali
+
+Düşmanlar `M_Enemy_SimpleLit_NoNormal` kullanır: URP **Simple Lit** (Blinn-Phong), specular vurgu yok, normal map yok,
+sadece diffuse atlas. Lit (fiziksel tabanlı), normal map'li Simple Lit ve normal map'siz Simple Lit, MCP ile Mobile kalite
+seviyesinde aynı 40 düşmanlık kalabalıkta, oyun kamerasından daha yakın bir açıdan yan yana render edildi; üçü
+ayırt edilemedi. Bir düşman ekranda yaklaşık 100 x 150 piksel kapladığı için normal map'in ve PBR ışığın katkısı bu
+boyutta görünmüyor. En ucuz seçenek seçildi; piksel başına bir doku okuması ve tangent-space normal hesabı da gitti.
+Karşılaştırma için `M_Enemy` (Lit) ve `M_Enemy_SimpleLit` (normal map'li) `Assets/Optimized/Enemy` altında duruyor.
+Telefondaki sonuç: GPU süresi 13,2 -> 11,7 ms (`PERFORMANCE.md` > Adım 7).

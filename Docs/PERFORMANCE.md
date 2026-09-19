@@ -198,3 +198,32 @@ Ham sonuçlar: `Benchmarks/step6_animation_run1.json`, `Benchmarks/step6_animati
 kalktığı için bellek 4-5 MB azaldı. FPS neredeyse değişmedi, çünkü frame süresi yine GPU süresine eşit: oyun GPU'ya
 takılı. CPU kazancı FPS'e değil, cihazın daha az yüklenmesine (ısınma, pil) ve CPU'ya ileride eklenecek iş için paya
 dönüşüyor.
+
+## Adım 7: düşman materyali Simple Lit (`v1.1.5`, commit `3e208cc`)
+
+Değişiklik: düşmanlar URP Lit (fiziksel tabanlı ışık) yerine **Simple Lit** (Blinn-Phong) kullanıyor; specular vurgu
+ve normal map yok. Lit, normal map'li Simple Lit ve normal map'siz Simple Lit MCP ile aynı kalabalıkta yan yana render
+edildi; oyun kamerasından daha yakın bir açıdan bile ayırt edilemediği için en ucuzu seçildi. Ayrıntılar `TECH.md` >
+Düşman materyali.
+
+| Ölçüm | Adım 6 (koşu 2) | Adım 7 koşu 1 | Adım 7 koşu 2 |
+|------|------|------|------|
+| Ortalama FPS | 74,2 | 83,8 | **83,8** |
+| 1% low FPS | 58,7 | 58,7 | **58,8** |
+| Frame süresi ort. / p99 / en fazla (ms) | 13,5 / 17,0 / 25,5 | 11,9 / 17,0 / 25,5 | **11,9 / 17,0 / 25,5** |
+| **GPU süresi (ms)** | **13,2** | 11,7 | **11,7** |
+| CPU ana thread (ms) | 8,4 | 7,6 | **8,2** |
+| Ayrılmış bellek | 107 MB | 107 MB | 107 MB |
+
+Ham sonuçlar: `Benchmarks/step7_simplelit_run1.json`, `Benchmarks/step7_simplelit_run2.json`, `Benchmarks/step7_simplelit_run2.jpg`.
+
+**Yorum:** piksel başına ışık hesabının ucuzlaması GPU'dan 1,5 ms kazandırdı. Referansa göre **5,7 kat** (14,6 -> 83,8 FPS).
+
+### Ölçüm notu: 1% low neden hep 58,7?
+
+Adım 2'den beri 1% low FPS her ölçümde 58,7 ve p99 frame süresi 17,0 ms. Bu tesadüf değil, ekranın yenileme
+hızından geliyor: telefon 120 Hz, yani bir frame ya 8,33 ms'lik yenilemeye yetişiyor ya da bir sonrakine (16,67 ms)
+kayıyor. p99 = 17,0 ms, en yavaş %1'lik frame'lerin tam bir yenilemeyi kaçırdığını gösteriyor. 1% low bu yüzden vsync'in
+sabit basamağına takılıyor ve adımlar arasındaki farkı göstermiyor. Adımları karşılaştırmak için ortalama frame süresi
+ile GPU ve CPU süreleri daha doğru ölçüdür. Normal oyun 60 FPS'e kilitli olduğu için bu frame'ler oyunda takılma olarak
+görünmez (60 FPS'te bütçe zaten 16,7 ms).
