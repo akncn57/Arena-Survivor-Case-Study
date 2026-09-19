@@ -19,4 +19,4 @@ MonoBehaviour:
     attackInterval: 1
     attackRange: 1.2
     separationRadius: 1.2
-    separationStiffness: 1
+    separationStiffness: 0.5

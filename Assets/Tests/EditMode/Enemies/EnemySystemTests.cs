@@ -303,8 +303,8 @@ namespace ArenaSurvivor.Tests.EditMode.Enemies
         {
             // The case that a force-based push lost: 150 enemies walking into the player from all sides must end up
             // spread around the player instead of squeezed into one blob by the ones walking in behind them.
-            // Uses the game's tuning (radius 1.2 m, stiffness 1).
-            var system = new EnemySystem(new EnemyConfig(1000, 2.5f, 1, 1f, 1.2f, 1.2f, 1f), new Health(1000000), 20f);
+            // Uses the game's tuning (radius 1.2 m, stiffness 0.5).
+            var system = new EnemySystem(new EnemyConfig(1000, 2.5f, 1, 1f, 1.2f, 1.2f, 0.5f), new Health(1000000), 20f);
             var random = new System.Random(4);
             for (int i = 0; i < 150; i++)
             {
@@ -337,6 +337,54 @@ namespace ArenaSurvivor.Tests.EditMode.Enemies
             float averageNearest = sumNearest / system.AliveCount;
             TestContext.WriteLine($"Average nearest neighbour after 15 s: {averageNearest:F2} m");
             Assert.That(averageNearest, Is.GreaterThan(0.75f));
+        }
+
+        [TestCase(1f / 120f)]
+        [TestCase(1f / 60f)]
+        [TestCase(1f / 30f)]
+        [TestCase(1f / 20f)]
+        public void Separation_SettledCrowd_DoesNotJitter(float deltaTime)
+        {
+            // Regression guard: with stiffness 1 every overlapping pair was corrected from both sides at once,
+            // enemies overshot every frame and a settled crowd shook back and forth (about 18 cm per frame,
+            // direction flipping every frame). The game's tuning must let the crowd come to rest.
+            var system = new EnemySystem(new EnemyConfig(1000, 2.5f, 1, 1f, 1.2f, 1.2f, 0.5f), new Health(1000000), 20f);
+            var random = new System.Random(4);
+            for (int i = 0; i < 150; i++)
+            {
+                float angle = (float)(random.NextDouble() * Mathf.PI * 2);
+                float distance = 10f + (float)random.NextDouble() * 8f;
+                system.Spawn(new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance));
+            }
+
+            int settleFrames = Mathf.CeilToInt(15f / deltaTime);
+            for (int frame = 0; frame < settleFrames; frame++)
+            {
+                system.Tick(deltaTime, Vector3.zero);
+            }
+
+            // Average movement per frame over one more second of an already settled crowd.
+            var previous = new Vector3[system.AliveCount];
+            float totalMovement = 0f;
+            int measureFrames = Mathf.CeilToInt(1f / deltaTime);
+            for (int frame = 0; frame < measureFrames; frame++)
+            {
+                for (int i = 0; i < system.AliveCount; i++)
+                {
+                    previous[i] = system.Active[i].Position;
+                }
+
+                system.Tick(deltaTime, Vector3.zero);
+
+                for (int i = 0; i < system.AliveCount; i++)
+                {
+                    totalMovement += Vector3.Distance(previous[i], system.Active[i].Position);
+                }
+            }
+
+            float averageMillimetres = totalMovement / (measureFrames * system.AliveCount) * 1000f;
+            TestContext.WriteLine($"Settled crowd moves {averageMillimetres:F2} mm per enemy per frame");
+            Assert.That(averageMillimetres, Is.LessThan(5f));
         }
 
         [TestCase(-1f, 0.5f)]

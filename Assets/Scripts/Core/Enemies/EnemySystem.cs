@@ -17,6 +17,10 @@ namespace ArenaSurvivor.Core.Enemies
         // Absorbs float rounding when an enemy stops exactly at the range edge.
         private const float RangeTolerance = 1e-4f;
 
+        // Separation substeps: longest simulated step and the most steps per frame.
+        private const float MaxSubstepSeconds = 1f / 60f;
+        private const int MaxSubsteps = 4;
+
         private readonly EnemyConfig _config;
         private readonly Health _target;
         private readonly ObjectPool<Enemy> _pool;
@@ -97,6 +101,34 @@ namespace ArenaSurvivor.Core.Enemies
                 return;
             }
 
+            int damageToTarget = 0;
+
+            if (_config.HasSeparation && _active.Count > 1)
+            {
+                // Walking and separation are integrated in steps of at most 1/60 s. With one long step (a 30 FPS
+                // frame) the walk moves enemies twice as far into each other as the separation corrects per step,
+                // and a settled crowd starts to shake back and forth. Capped so a long hitch cannot multiply the cost.
+                int steps = Mathf.Clamp(Mathf.CeilToInt(deltaTime / MaxSubstepSeconds - 1e-4f), 1, MaxSubsteps);
+                float subDelta = deltaTime / steps;
+                for (int s = 0; s < steps; s++)
+                {
+                    damageToTarget += MoveAndAttack(subDelta, targetPosition);
+                    ApplySeparation();
+                }
+            }
+            else
+            {
+                damageToTarget = MoveAndAttack(deltaTime, targetPosition);
+            }
+
+            // Applied after the loop: the damage may kill the player, and listeners reacting to that
+            // (e.g. clearing all enemies) must not modify the list while we iterate it.
+            _target.TakeDamage(damageToTarget);
+        }
+
+        /// <summary>One movement and attack step for every enemy. Returns the damage dealt to the target.</summary>
+        private int MoveAndAttack(float deltaTime, Vector3 targetPosition)
+        {
             float step = _config.MoveSpeed * deltaTime;
             float range = _config.AttackRange;
             int damageToTarget = 0;
@@ -134,14 +166,7 @@ namespace ArenaSurvivor.Core.Enemies
                 }
             }
 
-            if (_config.HasSeparation && _active.Count > 1)
-            {
-                ApplySeparation();
-            }
-
-            // Applied after the loop: the damage may kill the player, and listeners reacting to that
-            // (e.g. clearing all enemies) must not modify the list while we iterate it.
-            _target.TakeDamage(damageToTarget);
+            return damageToTarget;
         }
 
         /// <summary>
