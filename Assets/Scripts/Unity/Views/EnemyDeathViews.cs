@@ -48,6 +48,7 @@ namespace ArenaSurvivor.Unity.Views
             {
                 Corpse corpse = _corpses[i];
                 corpse.TimeLeft -= deltaTime;
+                corpse.View.UpdateFlash(deltaTime);
 
                 if (corpse.TimeLeft > 0f)
                 {

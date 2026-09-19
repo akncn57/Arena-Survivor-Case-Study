@@ -8,6 +8,7 @@ using ArenaSurvivor.Core.Weapons;
 using ArenaSurvivor.Core.World;
 using ArenaSurvivor.Unity.Benchmark;
 using ArenaSurvivor.Unity.Cameras;
+using ArenaSurvivor.Unity.Effects;
 using ArenaSurvivor.Unity.Input;
 using ArenaSurvivor.Unity.UI;
 using ArenaSurvivor.Unity.Views;
@@ -44,6 +45,12 @@ namespace ArenaSurvivor.Unity
         [Tooltip("Seconds a killed enemy stays on screen for its death animation.")]
         [SerializeField, Min(0f)] private float corpseSeconds = 2.2f;
 
+        [Header("Effects")]
+        [Tooltip("Particle burst played where a bullet hits an enemy.")]
+        [SerializeField] private ParticleSystem hitEffectPrefab;
+        [SerializeField, Min(0)] private int hitEffectPrewarm = 16;
+        [SerializeField, Min(0.05f)] private float hitEffectSeconds = 0.35f;
+
         [Header("Camera and input")]
         [SerializeField] private Camera gameCamera;
         [SerializeField] private FollowCamera.Settings cameraSettings = new FollowCamera.Settings();
@@ -68,6 +75,8 @@ namespace ArenaSurvivor.Unity
         private ViewRegistry<Enemy, EnemyView> _enemyViews;
         private ViewRegistry<Projectile, Transform> _projectileViews;
         private EnemyDeathViews _enemyDeaths;
+        private ImpactEffects _impacts;
+        private System.Action<Vector3> _onProjectileHit;
 
         // Cached once: passing a method group directly would allocate a new delegate every frame.
         private System.Action<Enemy, EnemyView> _syncEnemy;
@@ -107,6 +116,12 @@ namespace ArenaSurvivor.Unity
             _world.Enemies.Died += _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died += playerView.PlayDeath;
 
+            // Hit feedback: muzzle flash on every shot, a spark burst where a bullet hits.
+            _impacts = new ImpactEffects(hitEffectPrefab, viewRoot, hitEffectPrewarm, hitEffectSeconds);
+            _onProjectileHit = point => _impacts.Play(new Vector3(point.x, projectileHeight, point.z));
+            _world.Weapon.Fired += playerView.OnFired;
+            _world.Projectiles.Hit += _onProjectileHit;
+
             // The simulation freezes when a run ends; freeze the enemy animations with it.
             _freezeEnemy = (model, view) => view.SetFrozen(true);
             _world.Session.Ended += FreezeEnemies;
@@ -135,6 +150,8 @@ namespace ArenaSurvivor.Unity
             _world.Projectiles.Despawned -= _projectileViews.Hide;
             _world.Enemies.Died -= _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died -= playerView.PlayDeath;
+            _world.Weapon.Fired -= playerView.OnFired;
+            _world.Projectiles.Hit -= _onProjectileHit;
             _world.Session.Ended -= FreezeEnemies;
         }
 
@@ -151,6 +168,7 @@ namespace ArenaSurvivor.Unity
         private void OnRunStarted()
         {
             _enemyDeaths.Clear();
+            _impacts.Clear();
             playerView.Snap(_world.Player);
             _camera.Snap(_world.Player.Position);
         }
@@ -178,6 +196,7 @@ namespace ArenaSurvivor.Unity
             }
 
             _projectileViews.Sync(_syncProjectile);
+            _impacts.Tick(deltaTime);
             _camera.Follow(_world.Player.Position, deltaTime);
             _flow.Tick(deltaTime);
         }

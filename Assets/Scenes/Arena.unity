@@ -3422,6 +3422,9 @@ MonoBehaviour:
   projectilePrefab: {fileID: 7375807340956973490, guid: e2d026f9af6f08b4e8522ea6ada706b9, type: 3}
   projectileHeight: 1.2
   corpseSeconds: 2.2
+  hitEffectPrefab: {fileID: 7323182210509824097, guid: 59d1af1c6df922f46833edb5eac4ff9a, type: 3}
+  hitEffectPrewarm: 16
+  hitEffectSeconds: 0.35
   gameCamera: {fileID: 330585545}
   cameraSettings:
     offset: {x: 0, y: 20, z: -11.5}

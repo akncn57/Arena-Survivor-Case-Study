@@ -695,3 +695,33 @@ ayırt edilemedi. Bir düşman ekranda yaklaşık 100 x 150 piksel kapladığı 
 boyutta görünmüyor. En ucuz seçenek seçildi; piksel başına bir doku okuması ve tangent-space normal hesabı da gitti.
 Karşılaştırma için `M_Enemy` (Lit) ve `M_Enemy_SimpleLit` (normal map'li) `Assets/Optimized/Enemy` altında duruyor.
 Telefondaki sonuç: GPU süresi 13,2 -> 11,7 ms (`PERFORMANCE.md` > Adım 7).
+
+## Vuruş geri bildirimi (`Unity/Views`, `Unity/Effects`)
+
+Case "oyuncunun hareketi, saldırılar ve hasar geri bildirimi anlaşılır olmalıdır" diyor. Oyuncunun hasar alması zaten
+kırmızı ekran flaşıyla görünüyordu; bu bölüm saldırı tarafını anlaşılır yapar.
+
+| Geri bildirim | Nasıl | Tetikleyen |
+|------|------|------|
+| **Vurulan düşman parlar** (0,1 sn) | `EnemyView` her frame düşmanın canını okur; önceki frame'den düşükse `MaterialPropertyBlock` ile `_BaseColor`'ı parlak bir renkle çarpar, süre bitince bloğu temizler | Can azalması; ölümcül vuruşta `PlayDeath` |
+| **Namlu ışığı** (0,05 sn) | Rifle'ın ucunda, her atışta açılan tek parçacıklık bir partikül (kameraya dönük) | `Weapon.Fired` -> `PlayerView.OnFired` |
+| **İsabet kıvılcımı** (~0,3 sn) | 16 parçacıklık turuncu patlama, `HitSpark` prefab'ı | `ProjectileSystem.Hit` -> `ImpactEffects.Play` |
+
+Ayrıntılar ve nedenleri:
+- **Event yerine can okuma.** Düşman parlaması `Health.Damaged`'a abone olmak yerine canın düşüp düşmediğine bakar.
+  Pool'lanan view'lar farklı düşmanlara tekrar bağlandığı için abonelikleri her seferinde doğru bırakmak gerekirdi;
+  okuma yöntemi bu hata riskini tamamen ortadan kaldırıyor.
+- **Ölümcül vuruş.** Düşman aynı frame'de simülasyondan çıktığı için o vuruş `Sync`'e hiç ulaşmaz; parlama
+  `PlayDeath`'te başlatılır. Cesetler artık sync edilmediği için parlamayı `EnemyDeathViews.Tick` ilerletir.
+- **SRP Batcher.** `MaterialPropertyBlock` olan bir renderer SRP Batcher'ın toplu çiziminden çıkar. Blok sadece
+  parlama süresince (0,1 sn) duruyor ve sonra `SetPropertyBlock(null)` ile temizleniyor.
+- **Pool'lu partiküller.** `ImpactEffects` (saf C#) kıvılcımları `ObjectPool<ParticleSystem>` ile tutar, 16 tanesini
+  açılışta oluşturur ve süresi dolanları geri koyar; oyun sırasında `Instantiate`/`Destroy` yok. Yeni tur başlarken
+  hepsi temizlenir.
+- **Materyal.** Kıvılcım ve namlu ışığı `M_AdditiveParticle` kullanır: URP Particles/Unlit, additive blend (ışık gibi
+  toplanır), 64 x 64 yumuşak nokta dokusu. Additive'i doğru kurmak için yine URP'nin `BaseShaderGUI.SetupMaterialBlendMode`
+  fonksiyonu kullanıldı (bkz. Blob shadow notu).
+
+**MCP ile Play modunda doğrulandı:** Normal zorlukta 900 frame'lik turda 32 atış ve 31 isabet sayıldı; her atışta namlu
+ışığı, isabetlerde kıvılcım ve parlayan düşman görüldü. İsabet ve atış anları yakın plan render ile yakalandı. İlk render'da
+kıvılcımlar oyun mesafesinden neredeyse görünmüyordu; boyutları (0,2-0,4 m) ve sayıları (16) artırıldı.
