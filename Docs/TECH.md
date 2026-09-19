@@ -177,13 +177,43 @@ ortasında olsaydı liste dolaşımı bozulurdu. Bu durum bir testle korunuyor.
   için kabul edilmiş küçük bir ödünleşim.
 - Rastgelelik dışarıdan verilen bir `System.Random`'dan gelir; testler sabit seed kullanır ve tekrarlanabilirdir.
 
-Bilinen eksik (optimizasyon aşaması için planlandı): düşmanlar birbirini itmez, oyuncunun etrafında kalabalık
-oluşturduklarında üst üste binebilirler. Ayrışma komşu aramayı gerektirir; bu tam da önce ölçülüp sonra bir
-spatial grid ile çözülmesi gereken türden bir maliyettir.
+**Ayrışma (separation).** Düşmanlar birbirinin içine girmez; oyuncunun etrafında tek bir yığın yerine tek tek
+seçilebilen bir sürü oluştururlar. `EnemyConfig`'te `separationRadius` (1,2 m) ve `separationStiffness` (1) ile
+ayarlanır; ikisinden biri 0 ise kapalıdır.
+
+- **Komşu arama: `SpatialGrid` (`Core/Spatial`).** Arena, kenarı ayrışma yarıçapı kadar olan hücrelere bölünür. Her
+  hücre, iki int dizisinde tutulan bir bağlı listedir (hücre başına `heads`, eleman başına `next`); her frame O(n)
+  yeniden kurulur ve bellek ayırmaz. Her düşman sadece etrafındaki 3 x 3 hücredekilerle karşılaştırılır. 150 düşman
+  için kaba kuvvet her çifti karşılaştırır (150 x 149 = 22.350 mesafe kontrolü); benchmark kalabalığında grid yaklaşık
+  1.600 kontrol yapıyor (MCP ile Play modunda ölçüldü, `EnemySystem.LastSeparationChecks`).
+- **Kuvvet değil, konum düzeltmesi.** İlk deneme, iç içe geçen düşmanları bir kuvvetle itiyordu. Oyuncuya doğru yürüyen
+  arka sıralar ön sıraları sıkıştırdı ve kalabalık yaklaşık 4 m'lik sıkışık bir diske döndü (en yakın çift 0,32 m,
+  oyuncunun 1,5 m yakınında 36 düşman). Şimdiki çözüm, iç içe geçen her çifti örtüşmenin yarısı kadar (sertlikle
+  çarpılarak) birbirinden uzaklaştırıyor; örtüşme yürüme hızı ne olursa olsun birkaç frame'de çözülüyor. Bütün
+  düzeltmeler önce hesaplanıp sonra uygulanıyor, sonuç liste sırasına bağlı değil.
+- **Ayar seçimi** (150 düşman, 15 sn simülasyon, MCP ile ölçüldü):
+
+  | Yarıçap / sertlik | Ortalama en yakın komşu | Kalabalık yarıçapı | Aynı anda saldıran | Tick |
+  |------|------|------|------|------|
+  | Kuvvet tabanlı itme (ilk deneme) | - | ~4 m | 36 | - |
+  | 1,0 m / 0,5 | 0,66 m | 4,8 m | - | 0,13 ms |
+  | 1,0 m / 1,0 | 0,73 m | 5,9 m | - | 0,10 ms |
+  | **1,2 m / 1,0 (seçilen)** | **0,90 m** | **7,1 m** | **6** | **0,11 ms** |
+  | 1,4 m / 1,0 | 1,10 m | 8,5 m | 4 | 0,09 ms |
+
+- **Oynanışa etkisi.** Aynı anda oyuncuya ulaşan düşman sayısı sınırlanıyor (6 civarı); kalabalık oyuncuyu bir anda
+  ezemiyor, sırayla saldırıyor. Hard zorluğu bu yüzden eskisinden daha kolay olabilir; değerler oynanarak ayarlanabilir.
 
 Testler: `EnemySystemTests` (hareket, menzil, saldırı cooldown'u, hasarların toplanması, ölüm event'leri, pool'dan
-tekrar kullanım, oyuncunun ölümü sırasında temizleme) ve `WaveSpawnerTests` (zamanlama, en fazla canlı sınırı,
+tekrar kullanım, oyuncunun ölümü sırasında temizleme, ayrışma: simetrik itme, yarıçap dışını yok sayma, üst üste
+doğan düşmanların dağılması, tam sertlikte tek frame'de çözülme, 150 düşmanlık kalabalığın aralığını koruması, sadece
+komşuların kontrol edilmesi), `SpatialGridTests` (grid'in kaba kuvvet aramasıyla birebir aynı komşuları bulması, arena
+dışının kenar hücrelere sıkıştırılması, kapasitenin büyümesi) ve `WaveSpawnerTests` (zamanlama, en fazla canlı sınırı,
 ilerlemeye göre artış, spawn halkası, arena sınırı, yeniden başlatma).
+
+Testlerin yakaladığı bir zayıflık: ilk "sadece komşular kontrol ediliyor" testi düşmanları tam 2 m arayla diziyordu;
+hiçbiri komşu hücreye düşmediği için kontrol sayısı 0 çıktı ve test hiçbir şey ölçmeden geçti. Test, düşmanlar rastgele
+bir kalabalık gibi dağıtılıp "en az bir kontrol yapıldı" şartı eklenerek düzeltildi.
 
 ### Oyuncu (`Core/Player`)
 

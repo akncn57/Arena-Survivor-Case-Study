@@ -117,3 +117,30 @@ Değişiklik: oyuncu `Player_Optimized` (19.450 -> 7.999 üçgen, 2 mesh -> 1, 3
 rifle dokuları 2048 -> 512. Ayrıntılar `TECH.md` > Optimize asset'ler > Oyuncu / Rifle.
 
 Tek bir karakter olduğu için ayrıca ölçülmedi; etkisinin küçük olması bekleniyor. Adım 4 ile birlikte ölçülecek.
+
+## Adım 3 + 4: optimize oyuncu ve düşman ayrışması (`v1.1.2`, commit `aebae33`)
+
+Değişiklik: Adım 3'teki optimize oyuncu ve rifle dokularına ek olarak düşmanlar artık birbirini itiyor (spatial grid ile
+ayrışma, yarıçap 1,2 m). Ayrıntılar `TECH.md` > Düşmanlar > Ayrışma.
+
+| Ölçüm | Adım 2 | Adım 4 koşu 1 | Adım 4 koşu 2 |
+|------|------|------|------|
+| Ortalama FPS | 78,3 | 67,5 | **67,8** |
+| 1% low FPS | 58,7 | 58,6 | **58,7** |
+| Frame süresi ort. / p99 / en fazla (ms) | 12,8 / 17,0 / 25,5 | 14,8 / 17,1 / 42,4 | **14,7 / 17,0 / 33,9** |
+| GPU süresi (ms) | 12,6 | 14,5 | **14,5** |
+| CPU ana thread (ms) | 10,4 | 10,3 | **10,9** |
+| Ayrılmış bellek | 112 MB | 111 MB | 111 MB |
+
+Ham sonuçlar: `Benchmarks/step4_separation_run1.json`, `Benchmarks/step4_separation_run2.json`, `Benchmarks/step4_separation_run2.jpg`.
+
+**Yorum: FPS düştü, ama ölçülen sahne değişti.**
+- **CPU aynı kaldı** (10,3-10,9 ms, önceden 10,4). Ayrışmanın maliyeti ölçülemeyecek kadar küçük: grid 150 düşman
+  için frame başına yaklaşık 1.600 mesafe kontrolü yapıyor, kaba kuvvet 22.350 yapardı. Editörde `EnemySystem.Tick`
+  ayrışma dahil yaklaşık 0,1 ms.
+- **GPU 1,9 ms arttı.** Ayrışmadan önce 150 düşman oyuncunun üstünde tek bir yığındı: ekranın küçük bir bölümünü
+  kaplıyor, büyük kısmı birbirinin arkasında kalıyordu. Artık ekranın büyük bölümüne yayılıyorlar (ekran görüntüsünü
+  Adım 2'ninkiyle karşılaştırın). GPU'nun boyadığı piksel sayısı ve ekranın yakın yarısında LOD0 ile çizilen düşman
+  sayısı arttı. Benchmark artık daha gerçekçi ve daha ağır bir sahneyi ölçüyor.
+- 60 FPS hedefi korunuyor: ortalama frame 16,7 ms'lik bütçenin 14,7 ms'ini kullanıyor, 1% low değişmedi.
+- Adım 3'ün (oyuncu) ayrı etkisi bu ölçümde ayrıştırılamıyor; tek karakter için küçük olması bekleniyor.
