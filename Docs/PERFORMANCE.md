@@ -3,6 +3,35 @@
 Referans build'in (optimizasyon öncesi) ve optimize build'in ölçümleri. Hepsi oyun içindeki benchmark ile aynı
 koşullarda alındı (bkz. `TECH.md` > Benchmark modu).
 
+## Özet
+
+| | Referans (`v1.0-reference`) | Optimize (`v1.1-optimized`) | Değişim |
+|------|------|------|------|
+| Ortalama FPS (150 düşman) | 14,6 | **83,8** | **x5,7** |
+| Frame süresi | 68,6 ms | 11,9 ms | -%83 |
+| GPU süresi | 68,6 ms | 11,7 ms | -%83 |
+| CPU ana thread | 17,4 ms | 8,2 ms | -%53 |
+| Ayrılmış bellek | 119 MB | 107 MB | -%10 |
+| APK boyutu | 50,2 MB | ~42 MB | -%16 |
+| Düşman üçgeni (LOD0 / LOD1) | 36.902 | 4.500 / 1.500 | |
+| Düşman dokuları | 8 x 4096² | 1 x 1024 x 512 | |
+
+60 FPS hedefi (16,7 ms) bütçenin yaklaşık %70'i kullanılarak karşılanıyor. Optimize build'in ölçülen sahnesi
+referanstan daha ağır: düşmanlar birbirini itip ekrana yayılıyor (Adım 4), referansta ise oyuncunun üstünde tek bir
+yığındı.
+
+| Adım | Değişiklik | FPS | GPU | CPU |
+|------|------|------|------|------|
+| Referans | Orijinal asset'ler | 14,6 | 68,6 | 17,4 |
+| 1 | Düşman modeli: LOD, atlas, 22 kemik | 49,4 | 19,9 | 12,2 |
+| 2 | Mobil render ayarları, blob shadow | 78,3 | 12,6 | 10,4 |
+| 3 + 4 | Oyuncu modeli + düşman ayrışması (sahne ağırlaştı) | 67,8 | 14,5 | 10,9 |
+| 5 | Titreme düzeltmesi + agresif LOD | 73,5 | 13,4 | 9,9 |
+| 6 | Generic klipler, Optimize Game Objects, Cull Completely | 74,2 | 13,2 | 8,4 |
+| 7 | Simple Lit düşman materyali | 83,8 | 11,7 | 8,2 |
+
+(GPU ve CPU süreleri milisaniye cinsinden. Her adımın ayrıntısı ve ham JSON sonuçları aşağıda.)
+
 ## Test koşulları
 
 | | |
