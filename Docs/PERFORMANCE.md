@@ -16,6 +16,13 @@ koşullarda alındı (bkz. `TECH.md` > Benchmark modu).
 | Düşman üçgeni (LOD0 / LOD1) | 36.902 | 4.500 / 1.500 | |
 | Düşman dokuları | 8 x 4096² | 1 x 1024 x 512 | |
 
+| Referans (`v1.0-reference`): 14,6 FPS | Optimize (`v1.1-optimized`): 83,8 FPS |
+|------|------|
+| ![Referans benchmark sonucu](Benchmarks/reference_run2.jpg) | ![Optimize benchmark sonucu](Benchmarks/step7_simplelit_run2.jpg) |
+
+Telefondaki benchmark sonuç ekranları. Arkadaki arenada farkı da görmek mümkün: referansta 150 düşman oyuncunun
+üstünde tek bir yığın, optimize build'de ekrana yayılmış bir kalabalık (daha ağır bir sahne).
+
 60 FPS hedefi (16,7 ms) bütçenin yaklaşık %70'i kullanılarak karşılanıyor. Optimize build'in ölçülen sahnesi
 referanstan daha ağır: düşmanlar birbirini itip ekrana yayılıyor (Adım 4), referansta ise oyuncunun üstünde tek bir
 yığındı.
@@ -46,6 +53,8 @@ yığındı.
 | Prosedür | Telefon şarjda, ekran açık, uygulama yeni başlatılmış, benchmark arka arkaya iki kez |
 
 Ham sonuçlar: `Benchmarks/reference_run1.json`, `Benchmarks/reference_run2.json`, ekran görüntüsü `Benchmarks/reference_run2.jpg`.
+
+![Referans build, 2. koşu: 14,6 FPS](Benchmarks/reference_run2.jpg)
 
 ## Referans build (`v1.0-reference`)
 
@@ -114,6 +123,8 @@ ağırlık, tek materyal, 1024 x 512 ASTC atlas). Ayrıntılar `TECH.md` > Optim
 
 Ham sonuçlar: `Benchmarks/step1_enemy_run1.json`, `Benchmarks/step1_enemy_run2.json`, `Benchmarks/step1_enemy_run2.jpg`.
 
+![Adım 1, 2. koşu: 49,4 FPS](Benchmarks/step1_enemy_run2.jpg)
+
 **Yorum:** referans analizinin öngördüğü gibi en büyük GPU maliyeti düşman asset'iydi. CPU da hızlandı: düşman başına
 43 kemik daha az canlandırılıyor ve daha az ağırlık skin'leniyor. Frame süresi (20,2 ms) hâlâ GPU süresine eşit; oyun
 hâlâ GPU'ya takılıyor ve 60 FPS'e (16,7 ms) yaklaşık 3-4 ms uzak. Sıradaki: render ayarları (gölgeler, çözünürlük,
@@ -134,6 +145,8 @@ zamanlı gölge yerine blob shadow kullanıyor. Ayrıntılar `TECH.md` > Render 
 | Ayrılmış bellek | 119 MB | 112 MB | 112 MB | 112 MB |
 
 Ham sonuçlar: `Benchmarks/step2_render_run1.json`, `Benchmarks/step2_render_run2.json`, `Benchmarks/step2_render_run2.jpg`.
+
+![Adım 2, 2. koşu: 78,3 FPS](Benchmarks/step2_render_run2.jpg)
 
 **Yorum:** post-processing'i, HDR'yi ve gölge atan 150 skinned mesh'i kaldırmak GPU süresinden 7 ms daha kazandırdı.
 60 FPS hedefine ulaşıldı: ortalama frame 16,7 ms'lik bütçenin 12,8 ms'ini kullanıyor ve 1% low, benchmark'ın 120 FPS
@@ -162,6 +175,8 @@ ayrışma, yarıçap 1,2 m). Ayrıntılar `TECH.md` > Düşmanlar > Ayrışma.
 | Ayrılmış bellek | 112 MB | 111 MB | 111 MB |
 
 Ham sonuçlar: `Benchmarks/step4_separation_run1.json`, `Benchmarks/step4_separation_run2.json`, `Benchmarks/step4_separation_run2.jpg`.
+
+![Adım 3 + 4, 2. koşu: 67,8 FPS](Benchmarks/step4_separation_run2.jpg)
 
 **Yorum: FPS düştü, ama ölçülen sahne değişti.**
 - **CPU aynı kaldı** (10,3-10,9 ms, önceden 10,4). Ayrışmanın maliyeti ölçülemeyecek kadar küçük: grid 150 düşman
@@ -194,6 +209,8 @@ Değişiklik:
 
 Ham sonuç: `Benchmarks/step5_jitter_lod_run1.json`, `Benchmarks/step5_jitter_lod_run1.jpg` (bu adımda tek koşu yapıldı).
 
+![Adım 5: 73,5 FPS](Benchmarks/step5_jitter_lod_run1.jpg)
+
 **Yorum:** LOD değişikliği GPU'dan 1,1 ms geri kazandırdı; Adım 4'te sahnenin ağırlaşmasıyla kaybedilen payın
 yarısından fazlası geri geldi. CPU'daki 1 ms'lik düşüşün sebebi bu ölçümle kesinleştirilemiyor (olası açıklama:
 titremeyen kalabalıkta Animator'lar saldırı ve yürüme arasında gidip gelmiyor); Profiler olmadan varsayım olarak
@@ -223,6 +240,8 @@ Editörde 150 düşmanla yapılan A/B ölçümü (masaüstü CPU, sadece oran i�
 
 Ham sonuçlar: `Benchmarks/step6_animation_run1.json`, `Benchmarks/step6_animation_run2.json`, `Benchmarks/step6_animation_run2.jpg`.
 
+![Adım 6, 2. koşu: 74,2 FPS](Benchmarks/step6_animation_run2.jpg)
+
 **Yorum:** CPU ana thread süresi %15-21 düştü (referansta 17,4 ms idi, şimdi yaklaşık 8 ms); kemik GameObject'leri
 kalktığı için bellek 4-5 MB azaldı. FPS neredeyse değişmedi, çünkü frame süresi yine GPU süresine eşit: oyun GPU'ya
 takılı. CPU kazancı FPS'e değil, cihazın daha az yüklenmesine (ısınma, pil) ve CPU'ya ileride eklenecek iş için paya
@@ -245,6 +264,8 @@ Düşman materyali.
 | Ayrılmış bellek | 107 MB | 107 MB | 107 MB |
 
 Ham sonuçlar: `Benchmarks/step7_simplelit_run1.json`, `Benchmarks/step7_simplelit_run2.json`, `Benchmarks/step7_simplelit_run2.jpg`.
+
+![Adım 7, 2. koşu: 83,8 FPS](Benchmarks/step7_simplelit_run2.jpg)
 
 **Yorum:** piksel başına ışık hesabının ucuzlaması GPU'dan 1,5 ms kazandırdı. Referansa göre **5,7 kat** (14,6 -> 83,8 FPS).
 
