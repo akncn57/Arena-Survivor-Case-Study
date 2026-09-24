@@ -4,6 +4,7 @@ namespace ArenaSurvivor.Core.Session
 {
     /// <summary>
     /// State of a single run: the survival timer, the kill count and the win/lose outcome.
+    /// An endless run (<see cref="StartEndless"/>) has no time limit: it can only end with the player's death.
     /// Time only advances through <see cref="Tick"/>, so the class has no dependency on Unity's clock
     /// and tests can simulate a whole run instantly.
     /// </summary>
@@ -21,6 +22,9 @@ namespace ArenaSurvivor.Core.Session
 
         public bool IsPlaying => State == GameState.Playing;
 
+        /// <summary>True for a run without a time limit. <see cref="Remaining"/> is then infinite and <see cref="Progress"/> 0.</summary>
+        public bool IsEndless => float.IsPositiveInfinity(Duration);
+
         public event Action Started;
         public event Action<RunResult> Ended;
 
@@ -37,6 +41,12 @@ namespace ArenaSurvivor.Core.Session
             Kills = 0;
             State = GameState.Playing;
             Started?.Invoke();
+        }
+
+        /// <summary>Starts a run without a time limit (endless mode). All run values are reset.</summary>
+        public void StartEndless()
+        {
+            Start(float.PositiveInfinity);
         }
 
         /// <summary>Advances the timer. Ends the run as won once the duration is reached.</summary>

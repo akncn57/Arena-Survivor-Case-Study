@@ -25,6 +25,9 @@ namespace ArenaSurvivor.Core.Weapons
         [Tooltip("Projectile speed in world units per second.")]
         [SerializeField, Min(0.1f)] private float projectileSpeed = 25f;
 
+        [Tooltip("Angle between neighbouring projectiles when the multishot upgrade fires several at once.")]
+        [SerializeField, Range(0f, 45f)] private float multishotSpreadDegrees = 12f;
+
         public WeaponConfig()
         {
         }
@@ -46,6 +49,11 @@ namespace ArenaSurvivor.Core.Weapons
         public float FireInterval => fireInterval;
         public float Range => range;
         public float ProjectileSpeed => projectileSpeed;
-        public float ProjectileTravelDistance => range * TravelDistanceFactor;
+        public float MultishotSpreadDegrees => multishotSpreadDegrees;
+
+        /// <summary>How far a projectile flies before it disappears, for a given (possibly upgraded) range.</summary>
+        public static float TravelDistanceFor(float range) => range * TravelDistanceFactor;
+
+        public float ProjectileTravelDistance => TravelDistanceFor(range);
     }
 }

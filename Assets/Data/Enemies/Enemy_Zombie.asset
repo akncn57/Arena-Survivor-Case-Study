@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Enemy_Zombie
   m_EditorClassIdentifier: ArenaSurvivor.Core::ArenaSurvivor.Core.Enemies.EnemyDefinition
   config:
-    maxHealth: 3
+    maxHealth: 30
     moveSpeed: 2.5
     contactDamage: 10
     attackInterval: 1

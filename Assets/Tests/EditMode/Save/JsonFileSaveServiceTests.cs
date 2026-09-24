@@ -133,5 +133,30 @@ namespace ArenaSurvivor.Tests.EditMode.Save
         {
             Assert.Throws<ArgumentException>(() => new JsonFileSaveService(path));
         }
+
+        [Test]
+        public void Load_OldFileWithoutEndlessFields_DefaultsToZero()
+        {
+            Directory.CreateDirectory(_directory);
+            File.WriteAllText(_filePath, "{\"version\":1,\"totalKills\":12}");
+
+            SaveData data = new JsonFileSaveService(_filePath).Load();
+
+            Assert.That(data.totalKills, Is.EqualTo(12));
+            Assert.That(data.bestEndlessSeconds, Is.EqualTo(0f));
+            Assert.That(data.bestEndlessLevel, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void Load_NegativeEndlessRecords_AreClampedToZero()
+        {
+            Directory.CreateDirectory(_directory);
+            File.WriteAllText(_filePath, "{\"version\":1,\"totalKills\":1,\"bestEndlessSeconds\":-5.0,\"bestEndlessLevel\":-2}");
+
+            SaveData data = new JsonFileSaveService(_filePath).Load();
+
+            Assert.That(data.bestEndlessSeconds, Is.EqualTo(0f));
+            Assert.That(data.bestEndlessLevel, Is.EqualTo(0));
+        }
     }
 }

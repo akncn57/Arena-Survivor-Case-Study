@@ -47,10 +47,10 @@ Toplam kill sayısını uygulama kapanıp açılsa da korur.
 
 | Tip | Görev |
 |------|------|
-| `SaveData` | Saklanan veri. `version` alanı ve `totalKills` içeren serileştirilebilir sınıf. |
+| `SaveData` | Saklanan veri. `version`, `totalKills` ve Endless rekorları (`bestEndlessSeconds`, `bestEndlessLevel`) içeren serileştirilebilir sınıf. |
 | `ISaveService` | `SaveData` yükleme/kaydetme arayüzü. Oyun kodu sadece bu arayüzü bilir. |
 | `JsonFileSaveService` | `SaveData`'yı bir dosyada JSON olarak saklar (oyunda: `Application.persistentDataPath/save.json`). |
-| `ProgressService` | Oyunun kullandığı kısım: `TotalKills` ve `AddKills(int)`. Bir kez yükler, her değişiklikte kaydeder. |
+| `ProgressService` | Oyunun kullandığı kısım: `TotalKills`, `AddKills(int)` ve Endless için `RecordEndlessRun(süre, seviye)`. Bir kez yükler, her değişiklikte kaydeder. |
 
 Akış:
 
@@ -63,16 +63,20 @@ Davranış ayrıntıları:
 - **Atomik yazma.** `Save` önce `save.json.tmp` dosyasına yazar, sonra `File.Replace` ile (ilk seferde
   `File.Move`) yerine koyar. Uygulama yazma sırasında kapanırsa eski kayıt sağlam kalır.
 - **Oyunu asla durdurmaz.** Eksik, boş ya da bozuk dosya varsayılan değerlerle (0 kill) yüklenir ve bir uyarı loglanır.
-- **Temizlenir.** Elle düzenlenmiş dosyadaki negatif kill sayısı 0'a çekilir.
+- **Temizlenir.** Elle düzenlenmiş dosyadaki negatif kill sayısı ve negatif/geçersiz Endless rekorları 0'a çekilir.
+- **Eski dosyalar uyumlu.** Endless rekor alanları sonradan eklendi; `version` artırılmadı çünkü eski bir dosyada
+  eksik olan alanlar 0 olarak yükleniyor (testli). En iyi süre ve en iyi seviye ayrı tutulur: en uzun tur ile en
+  yüksek seviyeye çıkılan tur farklı olabilir.
 - **Sürümlü.** `version` ileride eski dosyaların dönüştürülmesini sağlar. Yeni alanların sadece güvenli varsayılan
   değerleri olmalı; `JsonUtility` eksik anahtarları alanın başlangıç değerinde bırakır.
 
-Testler: `JsonFileSaveServiceTests` (test başına geçici klasörde gerçek dosyalar) ve
-`ProgressServiceTests` (bellek içi sahte `ISaveService`, diske erişim yok).
+Testler: `JsonFileSaveServiceTests` (test başına geçici klasörde gerçek dosyalar; eski formatlı dosya, negatif
+rekorlar) ve `ProgressServiceTests` (bellek içi sahte `ISaveService`, diske erişim yok; rekorların ayrı tutulması,
+iyileşme yoksa kaydetmeme).
 
 ### Oturum (`Core/Session`)
 
-Oyunun bir turu: 3 dakikalık hayatta kalma sayacı, kill sayısı ve sonuç.
+Oyunun bir turu: 3 dakikalık hayatta kalma sayacı, kill sayısı ve sonuç. Endless turunda süre sınırı yoktur.
 
 | Tip | Görev |
 |------|------|
@@ -88,6 +92,7 @@ Idle --Start(180)--> Playing --sayaç 180 sn'ye ulaşır--> Won
                         +--NotifyPlayerDied()----------> Lost
 Won / Lost --Start(180)--> Playing   (tekrar oyna, bütün değerler sıfırlanır)
 Won / Lost --ReturnToIdle()--> Idle  (zorluk seçimine dönüş)
+Idle --StartEndless()--> Playing --NotifyPlayerDied()--> Lost   (Endless: süre dolmaz, sadece ölümle biter)
 ```
 
 Davranış ayrıntıları:
@@ -96,10 +101,14 @@ Davranış ayrıntıları:
 - **Tam bir kez biter.** `Won` ya da `Lost` sonrasında gelen tick, kill ve ölümler yok sayılır. Süre bittikten
   sonra isabet eden bir mermi kill sayılmaz; oyuncu kazandıktan sonra ölemez.
 - **`Progress` (0..1)** diğer sistemlere turun ne kadar ilerlediğini söyler. Spawn bunu zorluğu artırmak için kullanır.
+- **Endless.** `StartEndless()` süreyi sonsuz yapar (`Duration = +∞`). Aynı kod yolu çalışır: `Elapsed` sonsuzluğa hiç
+  ulaşmadığı için tur kazanılmaz, `Remaining` sonsuz ve `Progress` 0'dır; `IsEndless` bunu UI'a söyler. Endless'ta
+  zorluk artışı `Progress` yerine geçen süreden hesaplanır (bkz. Endless modu).
 - **Kill'leri kaydetmek oturumun işi değildir.** Composition root `Ended` event'ini `ProgressService.AddKills`'e
   bağlar; oturum kayıt mantığından bağımsız kalır.
 
-Testler: `GameSessionTests` (durum geçişleri, sayaç, kill'ler, tekrar oynamada sıfırlama, simüle edilmiş 60 FPS tur).
+Testler: `GameSessionTests` (durum geçişleri, sayaç, kill'ler, tekrar oynamada sıfırlama, simüle edilmiş 60 FPS tur,
+Endless'ın bir saatte bile bitmemesi ve sadece ölümle bitmesi).
 
 ### Zorluk (`Core/Difficulty`)
 
@@ -136,6 +145,8 @@ Testler: `DifficultyConfigTests` (başlangıç/bitiş/ara değerler, sınırlama
 - `Damaged(amount)` her isabette tetiklenir (hasar geri bildirimi için). `Died` **tam bir kez** tetiklenir; ölü bir hedef yeni hasar almaz.
 - `Reset()` yeni bir can için doldurur (pool'dan tekrar kullanılan düşman, tekrar oynayan oyuncu).
 - `IsInvulnerable` açıkken hasar yok sayılır (benchmark modu kullanır).
+- `Heal(amount)` en fazla `Max`'a kadar iyileştirir, ölüyü iyileştirmez, uygulanan miktarı `Healed` ile bildirir (can paketi, First Aid kartı).
+- `IncreaseMax(amount)` hem `Max`'ı hem `Current`'ı artırır; eksik can aynı kalır (Tough Skin kartı).
 
 Testler: `HealthTests`.
 
@@ -145,7 +156,7 @@ Bütün düşmanların doğması, kovalaması, saldırması ve ölmesi.
 
 | Tip | Görev |
 |------|------|
-| `EnemyConfig` | Özellikler: can, hız, temas hasarı, saldırı aralığı, saldırı menzili. |
+| `EnemyConfig` | Özellikler: can, hız, temas hasarı, saldırı aralığı, saldırı menzili. `Enemy_Zombie`: 30 can, 10 hasar. |
 | `EnemyDefinition` | `EnemyConfig` için ScriptableObject sarmalayıcı (`Assets/Data/Enemies/Enemy_Zombie`). |
 | `Enemy` | Tek bir düşmanın durumu: konum, yön, can, "saldırı menzilinde" bayrağı. Sadece veri, davranış yok. |
 | `EnemySystem` | Bütün düşmanların sahibi. Pool'dan spawn eder, hepsini tek döngüde günceller, hasar uygular, despawn eder. |
@@ -168,6 +179,10 @@ düşmanın yerini hatırlar).
 **Oyuncuya verilen hasar tick başına bir kez, döngüden sonra uygulanır.** Saldıran bütün düşmanların hasarı
 toplanıp sonda uygulanır. Oyuncunun ölmesi bütün düşmanları temizleyen dinleyicileri tetikleyebilir; bu döngünün
 ortasında olsaydı liste dolaşımı bozulurdu. Bu durum bir testle korunuyor.
+
+**Endless çarpanları.** `HealthMultiplier` (sadece bundan sonra doğanlara), `SpeedMultiplier` ve `DamageMultiplier`
+(bütün düşmanlara) Endless'ta zamanla artar; `ResetModifiers()` her tur başında 1'e döndürür. Pool'dan gelen düşman
+spawn'da `Health.Reset(SpawnHealth)` ile o anki çarpanla doğar.
 
 **Dalga spawn'ı.**
 - İlk dalga turun ilk tick'inde çıkar, sonra her `GetSpawnInterval(progress)` saniyede bir dalga gelir.
@@ -234,6 +249,8 @@ tam nitelikli isimler yazmayı gerektirir.)
   oyuncu ters yöne koşsa bile rifle vurulan düşmanı gösterir.
 - **Ölü oyuncu hareket etmez.** `Reset(position)` yeni tur için konumu ve canı sıfırlar.
 - `SpeedFraction` (0..1) koşma/durma animasyon karışımını sürer.
+- **Yükseltmeler.** `MoveSpeedMultiplier` hareket hızını ölçekler (`SpeedFraction` tam eğimde yine 1'dir). `Reset`
+  çarpanı 1'e ve canı config'teki taban değere döndürür; önceki turun Tough Skin kartları sıfırlanır.
 
 Testler: `PlayerCharacterTests`.
 
@@ -241,7 +258,7 @@ Testler: `PlayerCharacterTests`.
 
 | Tip | Görev |
 |------|------|
-| `WeaponConfig` | Rifle özellikleri: hasar, atış aralığı, menzil, mermi hızı. |
+| `WeaponConfig` | Rifle özellikleri: hasar (10), atış aralığı, menzil, mermi hızı, çoklu atış açısı (12°). |
 | `WeaponDefinition` | ScriptableObject sarmalayıcı (`Assets/Data/Weapons/Weapon_Rifle`). |
 | `Targeting` | `FindNearest(enemies, origin, range)`: menzildeki en yakın düşman ya da null. |
 | `Weapon` | Otomatik ateş: her tick hedef seçer, cooldown dolunca ateş eder. |
@@ -272,16 +289,31 @@ Davranış ayrıntıları:
 - **Pooling.** Düşmanlarla aynı desen: `ObjectPool<Projectile>`, O(1) swap-remove, `Prewarm`, `Clear`. Güncelleme
   döngüsü sondan başa çalışır; bir çıkarma sadece zaten güncellenmiş bir mermiyi boşalan yere taşır.
 
+- **Yükseltme çarpanları** (Endless kartları değiştirir, `Weapon.Reset()` sıfırlar): `DamageMultiplier`,
+  `FireRateMultiplier` (atış aralığı buna bölünür), `RangeMultiplier` (hedefleme menzili ve mermi mesafesi) ve
+  `ExtraProjectiles`. Hasar yuvarlanır ve en az 1'dir.
+- **Çoklu atış.** Bir atışta `1 + ExtraProjectiles` mermi, hedefe ortalanmış bir yelpaze olarak çıkar: tek sayıda
+  mermide ortadaki tam hedefe gider, çift sayıda hedefin iki yanından geçer; komşu mermiler arası açı
+  `multishotSpreadDegrees`. `Fired` event'i mermi başına değil atış başına bir kez gelir (namlu ışığı bir kez yanar).
+- **Neden hasar 1 -> 10, düşman canı 3 -> 30.** Hasar tam sayı. Taban hasar 1 iken %25'lik hasar kartı 1,25'i
+  yine 1'e yuvarlıyordu; kartlar etkisiz kalırdı. İkisi birlikte 10 ile çarpıldı; düşman hâlâ 3 isabette ölüyor,
+  zamanlı modlar ve benchmark birebir aynı davranıyor.
+
 Testler: `TargetingTests`, `WeaponTests`, `ProjectileSystemTests` (hareket, süre dolması, isabetler, içinden geçme,
-ıskalamalar, kill'ler, birden fazla mermi, pool'dan tekrar kullanım).
+ıskalamalar, kill'ler, birden fazla mermi, pool'dan tekrar kullanım). `WeaponTests` ayrıca yelpazenin açılarını (tek ve
+çift mermi), atış hızı, hasar yuvarlama, menzil çarpanları ve `Reset`'i test eder.
 
 ### Dünya (`Core/World`)
 
 `GameWorld` tek bir nesne içinde simülasyonun tamamıdır. `WorldConfig` arena geneli ayarları tutar (tur süresi,
 arena boyutu, spawn yarıçapı, mermi isabet yarıçapı, pool ön ısıtma sayıları).
 
-**Sahip oldukları.** `GameSession`, `PlayerCharacter`, `EnemySystem`, `ProjectileSystem`, `Weapon` ve
-`WaveSpawner`'ı oluşturur ve (spawner hariç) dışarıya açar; Unity tarafı onları çizer ve event'lerine abone olur.
+İki mod aynı sistemleri paylaşır: **zamanlı** (`StartRun`, case'in istediği oyun) ve **Endless** (`StartEndless`,
+bkz. Endless modu). XP/can düşürme, seviye ve kartlar sadece Endless'ta çalışır; zamanlı modlar ve benchmark
+eskisiyle birebir aynıdır.
+
+**Sahip oldukları.** `GameSession`, `PlayerCharacter`, `EnemySystem`, `ProjectileSystem`, `Weapon`, `WaveSpawner`,
+`PickupSystem`, `Experience` ve `UpgradeSystem`'i oluşturur ve (spawner hariç) dışarıya açar; Unity tarafı onları çizer ve event'lerine abone olur.
 
 **Event bağlantıları** (sistemlerin birbirine bağlandığı tek yer):
 
@@ -289,24 +321,30 @@ arena boyutu, spawn yarıçapı, mermi isabet yarıçapı, pool ön ısıtma say
 |------|------|------|
 | `Enemies.Died` | `Session.RegisterKill` | Kill sayacı |
 | `Player.Health.Died` | `Session.NotifyPlayerDied` | Tur kaybedilir |
-| `Session.Ended` | `Progress.AddKills` + `LastResult`'ı sakla | Toplam kill kaydedilir, sonuç ekranı verisi |
+| `Enemies.Died` | `OnEnemyDied` (sadece Endless) | Ölen düşmanın yerine XP taşı, şansa bağlı can paketi |
+| `Pickups.Collected` | `Experience.Add` / `Player.Health.Heal` | XP ya da can |
+| `Experience.LeveledUp` | `OfferUpgrade` | Kartlar seçilir, `UpgradeOffered` yayılır, simülasyon durur |
+| `Session.Ended` | `Progress.AddKills` (+ Endless ise `RecordEndlessRun`) + `LastResult`'ı sakla | Toplam kill ve rekor kaydedilir, sonuç ekranı verisi |
 
 `Tick(deltaTime, joystickInput)` içinde **frame sırası**:
 
 ```
+0. Kart seçimi bekliyorsa hiçbir şey yapılmaz (oyun duraklatılmış)
 1. Player.Move            önce oyuncu hareket eder; geri kalan her şey yeni konuma göre tepki verir
-2. WaveSpawner.Tick       oyuncunun etrafında yeni düşmanlar
+2. WaveSpawner.Tick       oyuncunun etrafında yeni düşmanlar (Endless: önce düşman çarpanları güncellenir)
 3. Enemies.Tick           kovalama ve saldırı; oyuncuyu öldürebilir -> tur biter, burada durulur
 4. Weapon.Tick + AimAt    hedef seç, ateş et, hedefe dön
-5. Projectiles.Tick       mermiler uçar ve vurur; kill'ler Enemies.Died üzerinden sayılır
-6. Session.Tick           sayaç en sonda; son frame'deki kill de kazanmadan önce sayılır
+5. Projectiles.Tick       mermiler uçar ve vurur; kill'ler Enemies.Died üzerinden sayılır (Endless: XP düşer)
+6. Pickups.Tick           Endless: XP ve can oyuncuya çekilir, toplanır; seviye atlanırsa kartlar sunulur
+7. Session.Tick           sayaç en sonda; son frame'deki kill de kazanmadan önce sayılır
 ```
 
 **Tur akışı.**
 - `StartRun(difficulty, options)`: düşmanları ve mermileri temizler, oyuncuyu ve silahı sıfırlar, spawner'ı ve sayacı başlatır.
 - `RunOptions` (varsayılan: normal oyun): sabit `Seed`, `Invulnerable` oyuncu, `Duration` ve `SkipProgress`
   (toplam kill'e eklenmez). Benchmark modu kullanır.
-- `Replay()`: aynı zorluk ve seçeneklerle `StartRun`. Toplam kill korunur.
+- `StartEndless(options)`: aynı hazırlık (arena, oyuncu, silah, düşman çarpanları, XP, kartlar sıfırlanır), sonra süresiz oturum.
+- `Replay()`: aynı mod, zorluk ve seçeneklerle yeniden başlar. Toplam kill ve rekorlar korunur.
 - `ReturnToMenu()`: arenayı temizler ve zorluk seçimi için `Idle`'a döner.
 - Kazanma ya da kaybetmeden sonra `Tick` hiçbir şey yapmaz; arena sonuç ekranının arkasında donmuş kalır.
 
@@ -316,7 +354,90 @@ sıfırlıyor, iki turun kill'leri toplanıyor, her `Spawned` event'inin bir `De
 modeller sızardı), aynı seed aynı spawn'ları üretiyor. Bir smoke testi varsayılan ayarlarla 60 FPS'te tam 3 dakikalık
 bir turu oynatıyor.
 
+`GameWorldEndlessTests` Endless'ı uçtan uca test eder (aşağıda).
+
 Paylaşılan test yardımcıları `Tests/EditMode/TestDoubles` altında (`InMemorySaveService`).
+
+### Endless modu (`Core/Endless`, `Core/Progression`, `Core/Upgrades`)
+
+Menüdeki **ENDLESS** butonuyla açılan ayrı mod. Süre yok, oyuncu ölene kadar devam eder. Case'in istediği zamanlı
+oyuna ek bir özellik; zamanlı modları ve benchmark'ı değiştirmez.
+
+- Ölen her düşman bir **XP taşı** düşürür, %3 ihtimalle bir **can paketi** (20 can).
+- Taşlar oyuncu yaklaşınca (mıknatıs yarıçapı) ona doğru uçar ve toplanır. XP barı dolunca **seviye atlanır**.
+- Seviye atlanınca oyun durur ve **3 özellik kartı** çıkar; oyuncu birini seçer, oyun devam eder.
+- Düşmanlar zamanla **daha çok, daha dayanıklı, daha hızlı ve daha sert** gelir.
+- En uzun süre ve en yüksek seviye kaydedilir; menüde ve sonuç ekranında görünür.
+
+| Tip | Görev |
+|------|------|
+| `EndlessConfig` / `EndlessSettings` | Bütün Endless ayarları (aşağıda); ScriptableObject `Assets/Data/Endless/Endless_Default`. |
+| `EnemyScalingConfig` | Düşman can, hız ve hasar çarpanlarının dakika başına artışı; hız için üst sınır. |
+| `Pickup`, `PickupKind`, `PickupSystem`, `PickupConfig` | Yerdeki XP taşları ve can paketleri: pool, tek döngü, mıknatıs, toplama. |
+| `LevelingConfig`, `Experience` | XP eğrisi, seviye ve bar doluluğu. |
+| `UpgradeKind`, `UpgradeEntry`, `UpgradeSystem` | Kart tanımları, kart seçimi (rastgele, tekrarsız), seçilen kartın etkisi. |
+
+**Kartlar** (`UpgradeEntry.CreateDefaults`, Inspector'dan değiştirilebilir):
+
+| Kart | Etki (seviye başına) | En fazla |
+|------|------|------|
+| Hollow Points | +%25 hasar | 5 |
+| Rapid Fire | +%20 atış hızı | 5 |
+| Multishot | +1 mermi (12° yelpaze) | 4 |
+| Long Barrel | +%15 menzil | 3 |
+| Tough Skin | +25 en fazla can (ve o kadar iyileştirir) | 5 |
+| Swift Boots | +%10 hareket hızı | 4 |
+| Magnet | +%50 toplama yarıçapı | 3 |
+| First Aid | Canın %40'ını yeniler | sınırsız, "dolgu" kartı |
+
+- **Kart seçimi.** Maksimuma ulaşmamış kartlardan rastgele ve tekrarsız 3 tane seçilir (kısmi Fisher-Yates).
+  "Dolgu" kartları (`maxLevel = 0`, First Aid) sadece gerçek kartlar 3'ten az kaldığında boşluğu doldurur; her şey
+  maksimumdayken oyuncu yine de bir seçim görür.
+- **Etkiler seviyeden hesaplanır.** Her seçimde değer çarpılarak birikmez, `1 + değer x seviye` yeniden hesaplanır:
+  3 hasar kartı tam olarak +%75'tir, kayan nokta hatası birikmez ve etki kolay okunur.
+- **Etkilerin sahibi sistemlerin kendisi.** Kart sistemi sadece `Weapon`, `PlayerCharacter` ve `PickupSystem`'in
+  çarpan özelliklerini ayarlar; tur başında her biri kendi `Reset`'iyle tabana döner.
+
+**Seviye ve duraklatma.**
+- XP eğrisi doğrusal: 1 -> 2 için 4 XP, sonra her seviye bir öncekinden 2 fazla (4, 6, 8, ...). Artan XP bir sonraki
+  seviyeye aktarılır; büyük bir taş birkaç seviye atlatabilir, `LeveledUp` her seviye için bir kez gelir.
+- Seviye atlanınca `GameWorld` kartları `UpgradeOffer`'a koyar ve `UpgradeOffered` yayar. Kart bekledikçe
+  `GameWorld.Tick` hiçbir şey yapmaz; simülasyon kendi kendine durur (testlerde Unity olmadan doğrulanabilir).
+- `ChooseUpgrade(index)` kartı uygular; bekleyen başka seviye varsa hemen yeni kartlar sunulur.
+- Unity tarafında ayrıca `Time.timeScale = 0` yapılır; böylece düşman animasyonları, partiküller, kamera ve dönen
+  taşlar da donar. UI butonları ölçeklenmemiş zamanla çalıştığı için kartlar tıklanabilir kalır.
+
+**Zorluk artışı** (`EndlessConfig`, varsayılanlar):
+- **Daha çok düşman:** spawn ayarları `DifficultyConfig`'i yeniden kullanır; başlangıç -> bitiş rampası turun `Progress`'i
+  yerine `geçen süre / rampSeconds` ile ilerler ve sonra bitiş değerinde kalır. 0:00'da 3 sn'de bir 2 düşman,
+  7:00'de 0,7 sn'de bir 12 düşman; en fazla 100 canlı.
+- **Daha güçlü düşman:** dakika başına can +%30, hasar +%15 (sınırsız), hız +%8 (en fazla 1,6 kat; yükseltilmiş oyuncu
+  hâlâ kaçabilir). Can çarpanı yeni doğan düşmanlara uygulanır; hız ve hasar hepsine.
+- Can ve hasar sınırsız büyüdüğü için her Endless turu sonunda biter; rekorun anlamı da budur.
+- **Ayar süreci.** Varsayılanlar, Core'u Unity olmadan koşturan bir simülasyonla seçildi: arenada daire çizerek kaçan
+  ve rastgele kart seçen basit bir bot. İlk ayarla bot Endless'ta Normal zorluktakiyle aynı sürede (~1,5 dk)
+  ölüyordu ve seviye atlamak yavaştı. Başlangıç yumuşatıldı (3 sn'de 2 düşman), XP eğrisi hızlandırıldı; bot artık
+  2-3,5 dk dayanıp 5-9 seviyeye çıkıyor. Kartları bilerek seçen bir oyuncu daha uzun dayanır.
+
+**Pickup'lar** (`PickupSystem`, düşman ve mermilerle aynı desen: pool, tek döngü, O(1) swap-remove, view event'leri):
+- Taş, oyuncu mıknatıs yarıçapına (3 m, Magnet kartı büyütür) girene kadar yerinde bekler; sonra 14 m/sn ile
+  oyuncuya uçar (oyuncu uzaklaşsa bile takibi bırakmaz) ve 0,8 m içinde toplanır.
+- **Üst sınır.** Arenada en fazla 250 pickup olur. Sınırda yeni XP mevcut bir taşa eklenir (XP asla kaybolmaz),
+  can paketi atlanır. Çok uzun bir turda view ve döngü maliyetini sınırlar.
+- Toplanan pickup önce `Collected` (XP/can uygulanır), sonra `Despawned` (view pool'a döner) yayar.
+
+**Unity tarafı.** `PickupViews` her tür için bir `ViewRegistry` tutar; taşlar havada süzülür, iner-kalkar ve döner
+(faz konumdan gelir, komşu taşlar aynı anda sallanmaz). Prefab'lar (`Pickup_Experience`: köşesi üstüne çevrilmiş
+turkuaz küp, `Pickup_Health`: kırmızı haçlı beyaz kutu) URP Simple Lit, hafif emission, GPU instancing açık, gölgesiz
+ve collider'sız; çok sayıda küçük nesne olduğu için gerçek zamanlı gölge maliyetine değmez.
+
+Testler: `PickupSystemTests` (mıknatıs, takip, toplama sırası, sınırda XP birleştirme, pool, bir tick'te çok toplama),
+`ExperienceTests` (eğri, aktarma, çoklu seviye), `UpgradeSystemTests` (tekrarsız ve eksiksiz kart seçimi, maksimum,
+dolgu kartı, bütün etkiler, açıklama metni), `EndlessConfigTests` (çarpanlar, hız sınırı, rampa) ve
+`GameWorldEndlessTests` (entegrasyon: Endless bitmez, kill XP verir, zamanlı modda düşürme yok, can paketi iyileştirir,
+seviye atlayınca oyun durur ve kart seçince devam eder, art arda seviyeler sırayla sunulur, düşmanlar güçlenir, ölüm
+rekoru kaydeder, Replay ve zamanlı moda geçiş her şeyi sıfırlar, her pickup spawn'ının bir despawn'ı var, 5 dakikalık
+smoke testi).
 
 ### Girdi matematiği (`Core/Input`)
 
@@ -352,6 +473,7 @@ MonoBehaviour; bir frame'de olan her şeyin sırası tek bir metotta görünür.
 | `PlayerView` | MonoBehaviour | Oyuncunun konumunu kopyalar, yönüne yumuşakça döner, animasyonu sürer. |
 | `EnemyView` | MonoBehaviour | Bir düşmanın konumunu, yönünü ve animasyonunu sürer. |
 | `EnemyDeathViews` | Saf C# | Ölen düşmanın modelini ölüm animasyonu boyunca sahnede tutar. |
+| `PickupViews` | Saf C# | Endless'ın XP taşlarını ve can paketlerini çizer (tür başına bir `ViewRegistry`). |
 | `FollowCamera` | Saf C# | Sabit ofsetli ve hafif yumuşatmalı eğik takip kamerası. |
 
 **Frame** (`GameBootstrap.Update`):
@@ -362,6 +484,7 @@ world.Tick(deltaTime, input)              simülasyon (bkz. GameWorld)
 playerView.Sync                           oyuncuyu çiz
 enemyViews.Sync / projectileViews.Sync    her düşmanı ve mermiyi çiz
 enemyDeaths.Tick                          ceset süreleri
+pickupViews.Tick                          Endless pickup'ları (süzülme, dönme)
 camera.Follow                             kamera en sonda; oyuncunun son konumunu görür
 flow.Tick                                 HUD, hasar flaşı, benchmark kaydı
 ```
@@ -408,9 +531,11 @@ uGUI ve TextMeshPro (TMP Essential Resources `Assets/TextMesh Pro` altına impor
 | Tip | Tür | Görev |
 |------|------|------|
 | `GameFlow` | Saf C# | Hangi ekranın görüneceğine ve butonların ne yapacağına karar verir. |
-| `MenuScreen` | MonoBehaviour | Zorluk başına bir buton (etiketler `DifficultySettings.DisplayName`'den), toplam kill, BENCHMARK butonu. |
-| `HudScreen` | MonoBehaviour | Kalan süre, kill sayısı, can barı. Joystick'i barındırır. |
-| `ResultScreen` | MonoBehaviour | "YOU SURVIVED" / "YOU DIED", kill'ler, hayatta kalınan süre, toplam kill, Play Again ve Menu. |
+| `MenuScreen` | MonoBehaviour | Zorluk başına bir buton (etiketler `DifficultySettings.DisplayName`'den), ENDLESS butonu ve rekoru, toplam kill, BENCHMARK butonu. |
+| `HudScreen` | MonoBehaviour | Kalan süre (Endless'ta geçen süre), kill sayısı, can barı; Endless'ta XP barı ve seviye. Joystick'i barındırır. |
+| `LevelUpScreen` | MonoBehaviour | "LEVEL N!" ve 3 `UpgradeCard`. Oyun arkada durur; bir kart seçilince devam eder. |
+| `UpgradeCard` | MonoBehaviour | Tek kart: başlık, etki metni, "NEW" ya da "Lv 1 > 2". Kartın tamamı buton. |
+| `ResultScreen` | MonoBehaviour | "YOU SURVIVED" / "YOU DIED", kill'ler, hayatta kalınan süre, toplam kill, Play Again ve Menu. Endless'ta "GAME OVER", seviye ve "NEW RECORD!" ya da en iyi tur. |
 | `BenchmarkScreen` | MonoBehaviour | Benchmark sonucu ve Menu butonu. |
 | `DamageFlash` | MonoBehaviour | Oyuncu vurulunca tam ekran kırmızı ton, 0.35 sn'de söner. |
 
@@ -419,6 +544,8 @@ Ekran akışı:
 ```
 Menu --zorluk butonu--> HUD (oyun) --tur biter--> Result --Play Again--> HUD
                                                          --Menu--------> Menu
+Menu --ENDLESS--------> HUD + XP barı --seviye--> Kartlar (oyun durur) --kart--> HUD
+                                     --ölüm----> Result (Endless) --Play Again / Menu
 Menu --BENCHMARK------> HUD (girdi yok) --biter--> Benchmark sonucu --Menu--> Menu
 ```
 
@@ -437,18 +564,34 @@ Davranış ayrıntıları:
   (100 canda 452/460 px, 40 canda 176 px) ve HUD'u render ederek doğrulandı.
 - **Hasar geri bildirimi.** `Player.Health.Damaged` `DamageFlash`'i tetikler. Flaş görseli tamamen şeffafken kapatılır;
   mobilde tam ekran şeffaf bir görsel bile GPU doldurma maliyeti taşır.
+- **Kart ekranı yanlışlıkla seçilmez.** Ekran oyunun ortasında aniden çıkıyor; o an ekrana dokunan bir parmak
+  okunmamış bir kartı seçmesin diye kartlar 0,4 sn (gerçek zaman) tıklanamaz. Yarı saydam siyah arka plan arkadaki
+  joystick'e dokunmayı engeller.
+- **Duraklatma her çıkışta kalkar.** `Time.timeScale` kart seçilince, yeni tur başlarken, tur bitince, menüye
+  dönünce ve bootstrap yok edilirken 1'e döner; editör ya da uygulama donmuş kalmaz.
+- **XP barı can barıyla aynı yöntemi kullanır** (dolgunun sağ çapası); sadece değer değişince güncellenir, çöp üretmez.
+- **İsteğe bağlı referanslar.** Endless için eklenen UI alanları ve prefab'lar atanmamışsa oyun eskisi gibi çalışır,
+  menü ENDLESS butonunu gizler.
 - Oyun sırasında FPS 60'ta kilitlidir (Android aksi hâlde 30'a kilitler); benchmark sırasında 120.
 
 Canvas hiyerarşisi (`UI`, kardeş sırası = çizim sırası):
 
 ```
 UI
-|- HudScreen        JoystickArea (dokunma alanı + Background/Handle), HealthBar/Fill, Timer, Kills
+|- HudScreen        JoystickArea (dokunma alanı + Background/Handle), HealthBar/Fill, Timer, Kills, ExperienceBar/Fill+Level
 |- DamageFlash
-|- ResultScreen     Title, Kills, Survived, TotalKills, ReplayButton, MenuButton
+|- LevelUpScreen    Title, Hint, Card0..2 (Title, Description, Level)
+|- ResultScreen     Title, Kills, Survived, TotalKills, Record, ReplayButton, MenuButton
 |- BenchmarkScreen  Title, Result, MenuButton
-|- MenuScreen       Title, Subtitle, Easy/Normal/HardButton, TotalKills, BenchmarkButton
+|- MenuScreen       Title, Subtitle, Easy/Normal/HardButton (sol sütun), EndlessButton/EndlessRecord (sağ), TotalKills, BenchmarkButton
 ```
+
+**Endless kurulumu (`Tools > Arena Survivor > Setup Endless Mode`, `Editor/EndlessModeSetup.cs`).** Endless'ın sahne
+ve asset tarafını tek tıkla kurar: `Endless_Default` ayar asset'i, pickup materyalleri ve prefab'ları, XP barı, kart
+ekranı, ENDLESS butonu, rekor metinleri ve bootstrap ile ekranlardaki bütün referanslar; sonra sahneyi kaydeder. Yeni UI,
+mevcut ve zaten stillenmiş objeler (can barı, metinler, butonlar) kopyalanarak kurulur; font, sprite ve renkler
+diğer ekranlarla aynı kalır. Tekrar çalıştırmak güvenlidir: var olan objeler isimle bulunur, sadece referanslar
+yenilenir.
 
 **MCP ile Play modunda doğrulandı:** menü kaydedilmiş toplam kill'i gösteriyor; Hard 150 düşman sınırıyla tur
 başlatıyor; oyuncunun ölümü kill, süre ve güncellenmiş toplamla "YOU DIED" gösteriyor; sonuç ekranında joystick

@@ -54,5 +54,42 @@ namespace ArenaSurvivor.Tests.EditMode.Save
         {
             Assert.Throws<ArgumentNullException>(() => new ProgressService(null));
         }
+
+        [Test]
+        public void RecordEndlessRun_KeepsBestTimeAndLevelSeparately()
+        {
+            var save = new InMemorySaveService();
+            var progress = new ProgressService(save);
+
+            Assert.That(progress.RecordEndlessRun(120f, 8), Is.True);
+            Assert.That(progress.RecordEndlessRun(90f, 10), Is.False, "Higher level but shorter run: not a new best time.");
+
+            Assert.That(progress.BestEndlessSeconds, Is.EqualTo(120f));
+            Assert.That(progress.BestEndlessLevel, Is.EqualTo(10));
+            Assert.That(save.Stored.bestEndlessSeconds, Is.EqualTo(120f));
+            Assert.That(save.Stored.bestEndlessLevel, Is.EqualTo(10));
+        }
+
+        [Test]
+        public void RecordEndlessRun_NoImprovement_DoesNotSave()
+        {
+            var save = new InMemorySaveService();
+            var progress = new ProgressService(save);
+            progress.RecordEndlessRun(120f, 8);
+            int saves = save.SaveCount;
+
+            bool record = progress.RecordEndlessRun(60f, 3);
+
+            Assert.That(record, Is.False);
+            Assert.That(save.SaveCount, Is.EqualTo(saves));
+        }
+
+        [Test]
+        public void RecordEndlessRun_Negative_Throws()
+        {
+            var progress = new ProgressService(new InMemorySaveService());
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => progress.RecordEndlessRun(-1f, 1));
+        }
     }
 }

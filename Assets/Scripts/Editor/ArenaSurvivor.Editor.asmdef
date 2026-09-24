@@ -1,7 +1,12 @@
 {
     "name": "ArenaSurvivor.Editor",
     "rootNamespace": "ArenaSurvivor.Editor",
-    "references": [],
+    "references": [
+        "ArenaSurvivor.Core",
+        "ArenaSurvivor.Unity",
+        "UnityEngine.UI",
+        "Unity.TextMeshPro"
+    ],
     "includePlatforms": [
         "Editor"
     ],
@@ -13,4 +18,3 @@
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
-}

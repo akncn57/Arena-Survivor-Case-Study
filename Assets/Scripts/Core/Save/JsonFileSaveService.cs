@@ -80,6 +80,16 @@ namespace ArenaSurvivor.Core.Save
                 data.totalKills = 0;
             }
 
+            if (float.IsNaN(data.bestEndlessSeconds) || float.IsInfinity(data.bestEndlessSeconds) || data.bestEndlessSeconds < 0f)
+            {
+                data.bestEndlessSeconds = 0f;
+            }
+
+            if (data.bestEndlessLevel < 0)
+            {
+                data.bestEndlessLevel = 0;
+            }
+
             return data;
         }
     }

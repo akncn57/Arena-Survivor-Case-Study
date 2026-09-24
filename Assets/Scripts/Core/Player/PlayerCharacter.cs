@@ -43,8 +43,14 @@ namespace ArenaSurvivor.Core.Player
 
         public bool IsMoving => Velocity.sqrMagnitude > MinDirectionSqr;
 
+        /// <summary>Scales <see cref="PlayerConfig.MoveSpeed"/>. Raised by the move speed upgrade; 1 after <see cref="Reset"/>.</summary>
+        public float MoveSpeedMultiplier { get; set; } = 1f;
+
+        /// <summary>Full speed after upgrades, in world units per second.</summary>
+        public float MoveSpeed => _config.MoveSpeed * MoveSpeedMultiplier;
+
         /// <summary>Current speed as a fraction of full speed (0..1). Blends idle and run animations.</summary>
-        public float SpeedFraction => _config.MoveSpeed > 0f ? Velocity.magnitude / _config.MoveSpeed : 0f;
+        public float SpeedFraction => MoveSpeed > 0f ? Velocity.magnitude / MoveSpeed : 0f;
 
         /// <summary>
         /// Moves by joystick input. Input longer than 1 is clamped, so diagonals are not faster.
@@ -59,7 +65,7 @@ namespace ArenaSurvivor.Core.Player
             }
 
             input = Vector2.ClampMagnitude(input, 1f);
-            Velocity = new Vector3(input.x, 0f, input.y) * _config.MoveSpeed;
+            Velocity = new Vector3(input.x, 0f, input.y) * MoveSpeed;
 
             Vector3 next = Position + Velocity * deltaTime;
             Position = new Vector3(
@@ -85,13 +91,16 @@ namespace ArenaSurvivor.Core.Player
             }
         }
 
-        /// <summary>Puts the player back at a position with full health. Used at the start of every run.</summary>
+        /// <summary>
+        /// Puts the player back at a position with full, base health and no upgrades. Used at the start of every run.
+        /// </summary>
         public void Reset(Vector3 position)
         {
             Position = new Vector3(position.x, 0f, position.z);
             Forward = Vector3.forward;
             Velocity = Vector3.zero;
-            Health.Reset();
+            MoveSpeedMultiplier = 1f;
+            Health.Reset(_config.MaxHealth); // Also undoes max health upgrades from the last run.
         }
     }
 }

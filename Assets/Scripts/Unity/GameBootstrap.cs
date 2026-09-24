@@ -1,8 +1,10 @@
 using System.IO;
 using ArenaSurvivor.Core.Difficulty;
+using ArenaSurvivor.Core.Endless;
 using ArenaSurvivor.Core.Enemies;
 using ArenaSurvivor.Core.Player;
 using ArenaSurvivor.Core.Presentation;
+using ArenaSurvivor.Core.Progression;
 using ArenaSurvivor.Core.Save;
 using ArenaSurvivor.Core.Session;
 using ArenaSurvivor.Core.Weapons;
@@ -35,6 +37,10 @@ namespace ArenaSurvivor.Unity
         [Tooltip("Difficulties offered in the menu, in button order (Easy, Normal, Hard).")]
         [SerializeField] private DifficultySettings[] difficulties;
 
+        [Tooltip("Endless mode tuning (spawn ramp, enemy scaling, drops, XP curve, upgrade cards). " +
+                 "Without it the menu hides the endless button.")]
+        [SerializeField] private EndlessSettings endless;
+
         [Header("Views")]
         [SerializeField] private PlayerView playerView;
         [SerializeField] private EnemyView enemyPrefab;
@@ -45,6 +51,11 @@ namespace ArenaSurvivor.Unity
 
         [Tooltip("Seconds a killed enemy stays on screen for its death animation.")]
         [SerializeField, Min(0f)] private float corpseSeconds = 2.2f;
+
+        [Header("Endless mode pickups")]
+        [SerializeField] private Transform experiencePickupPrefab;
+        [SerializeField] private Transform healthPickupPrefab;
+        [SerializeField] private PickupViews.Settings pickupViewSettings = new PickupViews.Settings();
 
         [Header("Effects")]
         [Tooltip("Particle burst played where a bullet hits an enemy.")]
@@ -63,6 +74,7 @@ namespace ArenaSurvivor.Unity
         [SerializeField] private ResultScreen resultScreen;
         [SerializeField] private DamageFlash damageFlash;
         [SerializeField] private BenchmarkScreen benchmarkScreen;
+        [SerializeField] private LevelUpScreen levelUpScreen;
 
         [Header("Performance")]
         [Tooltip("Frame rate cap during normal play. Android caps at 30 unless this is set.")]
@@ -81,6 +93,7 @@ namespace ArenaSurvivor.Unity
         private ViewRegistry<Enemy, EnemyView> _enemyViews;
         private ViewRegistry<Projectile, Transform> _projectileViews;
         private EnemyDeathViews _enemyDeaths;
+        private PickupViews _pickupViews;
         private ImpactEffects _impacts;
         private System.Action<Vector3> _onProjectileHit;
 
@@ -96,7 +109,9 @@ namespace ArenaSurvivor.Unity
             string savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
             var progress = new ProgressService(new JsonFileSaveService(savePath));
 
-            _world = new GameWorld(world, player.Config, enemy.Config, weapon.Config, progress, new System.Random());
+            bool endlessAvailable = endless != null && experiencePickupPrefab != null && healthPickupPrefab != null;
+            _world = new GameWorld(world, player.Config, enemy.Config, weapon.Config, progress, new System.Random(),
+                endlessAvailable ? endless.Config : null);
             _input = new MoveInput(joystick);
             _camera = new FollowCamera(gameCamera.transform, cameraSettings);
             _recoil = new CameraRecoil(cameraSettings.recoilDistance, cameraSettings.recoilReturnSharpness);
@@ -111,6 +126,13 @@ namespace ArenaSurvivor.Unity
             _world.Enemies.Despawned += _enemyViews.Hide;
             _world.Projectiles.Spawned += _projectileViews.Show;
             _world.Projectiles.Despawned += _projectileViews.Hide;
+
+            if (endlessAvailable)
+            {
+                _pickupViews = new PickupViews(experiencePickupPrefab, healthPickupPrefab, viewRoot, pickupViewSettings);
+                _world.Pickups.Spawned += _pickupViews.Show;
+                _world.Pickups.Despawned += _pickupViews.Hide;
+            }
 
             _syncEnemy = (model, view) => view.Sync(model);
             _syncProjectile = SyncProjectile;
@@ -152,7 +174,7 @@ namespace ArenaSurvivor.Unity
             _world.Session.Ended += FreezeEnemies;
 
             _flow = new GameFlow(_world, difficulties, menuScreen, hudScreen, resultScreen, damageFlash,
-                benchmarkScreen, benchmark, targetFrameRate, OnRunStarted);
+                benchmarkScreen, benchmark, targetFrameRate, OnRunStarted, levelUpScreen, endlessAvailable);
         }
 
         private void Start()
@@ -163,6 +185,9 @@ namespace ArenaSurvivor.Unity
 
         private void OnDestroy()
         {
+            // The level up screen pauses with the time scale; never leave the editor or the app frozen.
+            Time.timeScale = 1f;
+
             if (_world == null)
             {
                 return;
@@ -173,6 +198,12 @@ namespace ArenaSurvivor.Unity
             _world.Enemies.Despawned -= _enemyViews.Hide;
             _world.Projectiles.Spawned -= _projectileViews.Show;
             _world.Projectiles.Despawned -= _projectileViews.Hide;
+            if (_pickupViews != null)
+            {
+                _world.Pickups.Spawned -= _pickupViews.Show;
+                _world.Pickups.Despawned -= _pickupViews.Hide;
+            }
+
             _world.Enemies.Died -= _enemyDeaths.OnEnemyDied;
             _world.Player.Health.Died -= playerView.PlayDeath;
             _world.Player.Health.Damaged -= _onPlayerDamaged;
@@ -226,6 +257,7 @@ namespace ArenaSurvivor.Unity
             }
 
             _projectileViews.Sync(_syncProjectile);
+            _pickupViews?.Tick(deltaTime);
             _impacts.Tick(deltaTime);
             _shake.Tick(deltaTime);
             _recoil.Tick(deltaTime);

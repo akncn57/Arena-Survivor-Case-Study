@@ -256,3 +256,14 @@ kayıyor. p99 = 17,0 ms, en yavaş %1'lik frame'lerin tam bir yenilemeyi kaçır
 sabit basamağına takılıyor ve adımlar arasındaki farkı göstermiyor. Adımları karşılaştırmak için ortalama frame süresi
 ile GPU ve CPU süreleri daha doğru ölçüdür. Normal oyun 60 FPS'e kilitli olduğu için bu frame'ler oyunda takılma olarak
 görünmez (60 FPS'te bütçe zaten 16,7 ms).
+
+## Endless modu ve ölçümler
+
+Endless modu optimize build'den sonra eklendi. Benchmark'ı etkilemez: benchmark zamanlı bir tur başlatır, XP/can
+düşürme, kartlar ve düşman çarpanları sadece Endless'ta çalışır. Aynı değişiklikle rifle hasarı 1'den 10'a, düşman canı
+3'ten 30'a çıkarıldı (hasar kartlarının tam sayıya yuvarlanınca etkisiz kalmaması için); oran aynı, düşman yine 3
+isabette ölür, benchmark senaryosu birebir aynıdır.
+
+Endless'ın kendi maliyeti bilinçli olarak sınırlı tutuldu: en fazla 100 canlı düşman (benchmark'ın 150'sinin altında),
+en fazla 250 pickup (sınırda XP mevcut taşa eklenir), pickup'lar pool'lu, gölgesiz, collider'sız ve GPU instancing'li
+tek küçük mesh'ler; Core'da tek döngüde güncellenir. Endless için ayrı bir cihaz ölçümü yapılmadı.
