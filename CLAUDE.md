@@ -2,7 +2,8 @@
 
 Survivor.io-style mobile game built for a Unity Developer case study
 (also a portfolio piece). Deadline: 2026-09-25.
-Language: documentation (`Docs/`, README, AI work log) in **Turkish**; code, code comments and commit messages in English.
+Language: documentation (`Docs/`, README, AI work log) in **English** (default, `*.md`) with a **Turkish** copy
+next to each file (`*.tr.md`); every change goes into both. Code, code comments and commit messages in English.
 
 ## Case requirements (summary)
 - Single arena, virtual joystick movement, auto-attack enemies in range (rifle fires projectiles).
@@ -43,7 +44,7 @@ Language: documentation (`Docs/`, README, AI work log) in **Turkish**; code, cod
   (input, transforms, animation, UI, composition root). No DI framework; one composition root wires systems by hand.
 - Central systems update many entities in one loop (e.g. one enemy system, not one Update per enemy).
 - Every Core system gets EditMode NUnit tests (`Assets/Tests/EditMode`, mirroring source folders). Use fakes via interfaces.
-- Keep `Docs/TECH.md` updated whenever a system is added or changed; the user must be able to understand every system.
+- Keep `Docs/TECH.md` (and `Docs/TECH.tr.md`) updated whenever a system is added or changed; the user must be able to understand every system.
 - Build one system at a time, explain it, get the user's OK before the next.
 - Git: never add `Co-Authored-By` or any AI attribution lines to commit messages or PR descriptions.
 
@@ -64,4 +65,4 @@ Player: merge materials, moderate decimation. Rifle: textures to 512.
 - `Assets/Scripts/Core/` : plain C# game logic (`ArenaSurvivor.Core.asmdef`).
 - `Assets/Data/` : ScriptableObject tuning assets (difficulty levels, enemy definitions, endless settings).
 - `Assets/Tests/EditMode/` : EditMode tests (`ArenaSurvivor.Tests.EditMode.asmdef`).
-- `Docs/TECH.md` : technical overview of all systems.
+- `Docs/TECH.md` : technical overview of all systems (`Docs/TECH.tr.md`: Turkish).

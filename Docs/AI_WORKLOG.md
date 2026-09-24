@@ -1,119 +1,123 @@
-# AI Çalışma Günlüğü
+# AI Work Log
 
-Proje baştan sona Claude Code ile, Unity editörüne **MCP for Unity** (CoplayDev) üzerinden bağlanarak geliştirildi.
-Asset analizi ve optimizasyonu için Blender arayüzsüz (headless) script'lerle AI tarafından sürüldü.
+**English** | [Türkçe](AI_WORKLOG.tr.md)
 
-**Çalışma şekli** (`CLAUDE.md`'de yazılı kurallar):
-- Her seferinde tek sistem: AI sistemi yazar ve açıklar, onay gelmeden bir sonrakine geçmez.
-- Her Core sistemi EditMode testleriyle gelir; her sistem `Docs/TECH.md`'de anlatılır.
-- Kararlar (kamera açısı, yatay yön, Mixamo animasyonları, kendi joystick'imiz, JSON kayıt, Git LFS kullanmamak,
-  performans hedefi) proje başında `CLAUDE.md`'ye yazıldı; AI her oturumda bunlara göre çalıştı.
-- Editörde yapılan her iş MCP ile **ölçülerek ya da render alınarak doğrulandı**; "çalışıyor olmalı" kabul edilmedi.
-  Telefondaki sonuçlar ise her zaman gerçek cihazda ölçüldü.
+The project was developed from start to finish with Claude Code, connected to the Unity Editor through **MCP for Unity**
+(CoplayDev). For asset analysis and optimization the AI drove Blender through headless scripts.
 
-## Kritik karar 1: Oyun mantığı Unity'den bağımsız, saf C# ve testli
+**Way of working** (rules written in `CLAUDE.md`):
+- One system at a time: the AI writes the system and explains it, and does not move on to the next one without approval.
+- Every Core system comes with EditMode tests; every system is described in `Docs/TECH.md`.
+- Decisions (camera angle, landscape orientation, Mixamo animations, our own joystick, JSON save, no Git LFS,
+  performance target) were written into `CLAUDE.md` at the start of the project; the AI worked by them in every session.
+- Everything done in the Editor was **verified through MCP by measuring or rendering**; "it should work" was not
+  accepted. Results on the phone were always measured on the real device.
 
-**Seçenekler.** (a) Klasik Unity yaklaşımı: her düşmanda bir MonoBehaviour, Update, collider'lar ve fizik.
-(b) Oyun mantığı saf C# sınıflarında, MonoBehaviour'lar sadece çizim ve girdi için ince bir katman.
-(c) (b) + VContainer gibi bir DI container.
+## Key decision 1: game logic independent from Unity, in plain C# and tested
 
-**Karar: (b).** Container değerlendirildi ve reddedildi: bu ölçekte elle bağlama daha kısa, paket bağımlılığı
-getirmiyor ve her bağlantı tek dosyada görünür.
+**Options.** (a) The classic Unity approach: a MonoBehaviour on every enemy, Update, colliders and physics.
+(b) Game logic in plain C# classes, MonoBehaviours only as a thin layer for drawing and input.
+(c) (b) + a DI container such as VContainer.
 
-**Neden.**
-- 150 düşmanın her biri için bir `Update()` yerine tek döngü; mobil CPU için baştan doğru yapı.
-- Fizik motoru yok: mermi isabeti, merminin o frame'de kat ettiği yol parçasıyla test ediliyor; sonuçlar
-  deterministik ve testte doğrulanabilir.
-- Bütün oyun Play modu olmadan simüle edilebiliyor: 3 dakikalık bir tur testte milisaniyeler içinde oynatılıyor.
+**Decision: (b).** A container was considered and rejected: at this size manual wiring is shorter, adds no package
+dependency and keeps every connection visible in one file.
 
-**Sonucu.** 278 EditMode testi. Testler gerçek hatalar yakaladı: benchmark'ın yüzdelik hesabında float yuvarlama
-hatası (`0.99f * 100` 99'dan biraz büyük çıkıyordu), kamera sarsıntısının akıcı değil titrek olduğu (frame başına
-ofsetin %63'ü kadar sıçrama). Bu karar son eklenen Endless modunda da işe yaradı: Unity MCP'ye erişilemeyen bir bulut
-oturumunda Core sistemleri ve testleri Unity olmadan derlenip çalıştırıldı, zorluk ayarı da Core'u bir bot ile
-simüle ederek yapıldı.
+**Why.**
+- One loop instead of an `Update()` for each of 150 enemies; the right structure for a mobile CPU from the start.
+- No physics engine: a bullet hit is tested against the path the bullet travelled in that frame; the results are
+  deterministic and can be verified in tests.
+- The whole game can be simulated without play mode: a 3-minute run plays in milliseconds in a test.
 
-## Kritik karar 2: Önce ölç, sonra düşmanın asset'ini yeniden üret
+**Outcome.** 278 EditMode tests. The tests caught real bugs: a float rounding error in the benchmark's percentile
+(`0.99f * 100` came out slightly above 99), and a camera shake that jittered instead of moving smoothly (jumps of 63% of
+the offset per frame). The decision paid off again with the endless mode added last: in a cloud session that could not
+reach the Unity MCP server, the Core systems and tests were compiled and run without Unity, and the difficulty was tuned
+by simulating Core with a bot.
 
-**Durum.** Referans build telefonda 14,6 FPS verdi. İlk refleks kod optimizasyonu olabilirdi; benchmark ise frame
-süresinin GPU süresine eşit (~69 ms), CPU'nun ise sadece ~17 ms olduğunu gösterdi. Oyun **GPU'ya takılıydı**; CPU'yu
-hızlandırmak hiçbir şey kazandırmazdı.
+## Key decision 2: measure first, then rebuild the enemy asset
 
-**Karar.** Önce aynı koşulları garanti eden bir oyun içi benchmark modu yazıldı (sabit seed, hasar almayan ve
-hareketsiz oyuncu, 150 düşman, JSON + logcat çıktısı). Sonra en büyük GPU maliyeti hedeflendi: 150 x 36.902 üçgenlik,
-65 kemikli, 8 adet 4096² dokulu düşman. AI Blender'da önce modeli analiz eden, sonra optimize sürümü üreten script'ler
-yazdı: iki LOD (4.500 / 1.500 üçgen), parmak kemikleri kaldırıldı (65 -> 22, ağırlıkları ele aktarılarak), vertex başına
-4 kemik etkisi, iki materyal tek atlasa. Orijinal dosyalar hiç değiştirilmedi; referans build dürüst bir karşılaştırma
-olarak kaldı.
+**Situation.** The reference build ran at 14.6 FPS on the phone. The first reflex could have been code optimization;
+the benchmark instead showed that the frame time equalled the GPU time (~69 ms) while the CPU used only ~17 ms. The game
+was **GPU-bound**; making the CPU faster would have gained nothing.
 
-**Sonucu.** Tek adımda 14,6 -> 49,4 FPS. Toplam yedi ölçülmüş adımdan sonra 83,8 FPS (x5,7). Her adım aynı cihazda,
-aynı benchmark ile, bir sonrakine geçmeden ölçüldü (`Docs/PERFORMANCE.md`). Reddedilen bir alternatif: sadece uzak
-LOD'da gölgeyi kapatmak. Denendi; gölgeler ekranın üst yarısında aniden kayboluyordu, yerine bütün düşmanlara blob
-shadow verildi.
+**Decision.** First an in-game benchmark mode that guarantees identical conditions was written (fixed seed,
+invulnerable and stationary player, 150 enemies, JSON + logcat output). Then the biggest GPU cost was targeted: an enemy
+with 36,902 triangles, 65 bones and eight 4096² textures, times 150. The AI wrote Blender scripts that first analyze the
+model and then produce the optimized version: two LODs (4,500 / 1,500 triangles), finger bones removed (65 -> 22, with
+their weights moved to the hand), 4 bone influences per vertex, two materials merged into one atlas. The original files
+were never changed; the reference build remained an honest comparison.
 
-**Yakalanan hatalar.** Blender'da materyal listesini temizlemek yüzlerin materyal indekslerini de sıfırladı ve mesh tek
-submesh'e düştü (Unity'de submesh sayısı okunarak fark edildi). Ölçeklenmeyen bir doku, Blender pikselleri tembel
-yüklediği için boş kaydediliyordu. İkisi de çıktı Unity'de kontrol edilerek yakalandı.
+**Outcome.** 14.6 -> 49.4 FPS in one step. 83.8 FPS (x5.7) after seven measured steps in total. Every step was measured
+on the same device with the same benchmark before moving on (`Docs/PERFORMANCE.md`). A rejected alternative: turning
+shadows off only on the far LOD. It was tried; the shadows disappeared abruptly across the upper half of the screen, so
+all enemies got blob shadows instead.
 
-## Kritik karar 3: Düşman kalabalığı için kuvvet değil konum düzeltmesi
+**Bugs caught.** Clearing the material list in Blender also reset the faces' material indices and the mesh fell back to
+a single submesh (noticed by reading the submesh count in Unity). A texture that was not rescaled was saved empty
+because Blender loads pixels lazily. Both were caught by checking the output in Unity.
 
-**Sorun.** Düşmanlar oyuncunun üstünde tek bir yığına dönüşüyordu; tek tek seçilemiyor ve hepsi aynı anda
-vurabiliyordu.
+## Key decision 3: a position correction, not a force, for the enemy crowd
 
-**İlk deneme (reddedildi).** Birbirine çok yaklaşan düşmanları bir kuvvetle itmek. MCP ile Play modunda ölçüldüğünde
-arka sıralar ön sıraları sıkıştırdı: kalabalık ~4 m'lik bir diske döndü, en yakın çift 0,32 m, oyuncunun 1,5 m
-yakınında 36 düşman vardı.
+**Problem.** Enemies turned into one pile on top of the player; they could not be told apart and could all hit at once.
 
-**Karar.** İç içe geçen her çift, örtüşmenin yarısı kadar birbirinden uzaklaştırılıyor (konum düzeltmesi); komşular
-bir spatial grid'den geliyor (150 düşmanda 22.350 yerine ~1.600 mesafe kontrolü). Yarıçap ve sertlik, 150 düşmanlık
-simülasyonda ortalama komşu mesafesi, kalabalık yarıçapı, aynı anda saldıran düşman sayısı ve tick süresi MCP ile
-ölçülerek seçildi (1,2 m seçildi, ~6 düşman aynı anda saldırıyor).
+**First attempt (rejected).** Pushing enemies that get too close apart with a force. Measured in play mode through MCP,
+the rear ranks squeezed the front ranks: the crowd collapsed into a disc of ~4 m, the closest pair was 0.32 m apart,
+and 36 enemies were within 1.5 m of the player.
 
-**Sonradan çıkan sorun.** Telefonda kalabalığın titrediği görüldü. Ölçüldüğünde her düşman frame başına ~18 cm
-ileri-geri gidiyordu: 30 FPS'lik uzun bir frame'de yürüme adımı, ayrışmanın bir adımda düzelttiğinden büyüktü.
-Simülasyon 1/60 sn'lik alt adımlara bölündü ve sertlik 0,5'e indirildi; titreme gitti.
+**Decision.** Every overlapping pair is moved apart by half of the overlap (a position correction); neighbours come
+from a spatial grid (~1,600 distance checks instead of 22,350 for 150 enemies). The radius and stiffness were chosen by
+measuring the average neighbour distance, crowd radius, number of enemies attacking at once and tick time in a
+150-enemy simulation through MCP (1.2 m chosen, ~6 enemies attack at once).
 
-## Unity MCP ile uçtan uca görev: düşman animasyonu optimizasyonu
+**A problem found later.** The crowd was seen jittering on the phone. Measured, every enemy moved back and forth by
+~18 cm per frame: on a long 30 FPS frame the walking step was larger than what separation corrected in one step. The
+simulation was split into 1/60 s substeps and the stiffness lowered to 0.5; the jitter was gone.
 
-Case'in istediği "editör durumunu oku -> işlem yap -> doğrula" akışının en net örneği:
+## End-to-end task through Unity MCP: enemy animation optimization
 
-1. **Oku.** Benchmark sahnesinde (150 düşman) MCP ile Animator güncelleme süresi, Transform sayısı ve frame süresi
-   ölçüldü: Animator 2,33 ms, 3.978 Transform, frame 3,76 ms.
-2. **İşlem.** Düşman modelinde **Optimize Game Objects** açıldı (kemikler GameObject olmaktan çıkar). Humanoid
-   retargeting'i her frame yapmak yerine editörde bir kez yapan bir araç yazıldı (`GenericClipBaker`): Humanoid klip
-   30 FPS ile örneklenip her kemiğin yerel dönüşü Generic bir klibe kaydediliyor. Animator controller bu kliplerle
-   yeniden kuruldu, ekran dışı düşmanlar için **Cull Completely** açıldı.
-3. **Doğrula.** Aynı ölçüm tekrarlandı: 459 Transform, Animator 1,07 ms (-%54), frame 3,28 ms. Pozların Humanoid
-   oynatmayla aynı olduğu, iki farklı anda yan yana render alınarak kontrol edildi. Telefonda benchmark: CPU ana
-   thread 9,9 -> 8,4 ms, bellek 4-5 MB daha az.
+The clearest example of the "read editor state -> act -> verify" flow the case asks for:
 
-MCP ile yapılan diğer işler: sahnenin, UI'ın ve Animator controller'ların kurulması, kamera kadrajının render alınarak
-seçilmesi, rifle'ın el kemiğindeki konumunun animasyon pozundan hesaplanması, materyal varyantlarının yan yana render
-ile karşılaştırılması, oyun hissi ayarlarının (kamera sarsıntısı, isabet kıvılcımı) frame frame ölçülerek yapılması.
+1. **Read.** In the benchmark scene (150 enemies) the Animator update time, the Transform count and the frame time were
+   measured through MCP: Animator 2.33 ms, 3,978 Transforms, frame 3.76 ms.
+2. **Act.** **Optimize Game Objects** was turned on for the enemy model (the bones stop being GameObjects). A tool was
+   written that does the Humanoid retargeting once in the Editor instead of every frame (`GenericClipBaker`): the
+   Humanoid clip is sampled at 30 FPS and every bone's local transform is recorded into a Generic clip. The Animator
+   controller was rebuilt with these clips, and **Cull Completely** was turned on for off-screen enemies.
+3. **Verify.** The same measurement was repeated: 459 Transforms, Animator 1.07 ms (-54%), frame 3.28 ms. Side-by-side
+   renders at two different moments confirmed that the poses match the Humanoid playback. Benchmark on the phone: CPU
+   main thread 9.9 -> 8.4 ms, 4-5 MB less memory.
 
-## AI'ın yanıldığı ve düzeltildiği yerler
+Other work done through MCP: building the scene, the UI and the Animator controllers, choosing the camera framing by
+rendering, computing the rifle's position on the hand bone from the animation pose, comparing material variants with
+side-by-side renders, and tuning game feel (camera shake, impact sparks) by measuring frame by frame.
 
-- **Can barı hep doluydu.** AI dolgu görselinin köşeli görünmesini düzeltmek için sprite'ı kaldırmıştı; uGUI sprite'ı
-  olmayan bir Image'da `fillAmount`'u sessizce yok sayıyor. MCP ile yapılan kontrol sadece `fillAmount` değerini
-  okuduğu için hatayı görmedi; **telefonda oynarken fark edildi**. Düzeltme, dolgunun gerçek genişliği ölçülerek ve
-  HUD render alınarak doğrulandı. Ders: bir değeri okumak, sonucu görmek değildir.
-- **Hiçbir şey ölçmeyen test.** İlk "sadece komşular kontrol ediliyor" testi düşmanları tam 2 m arayla diziyordu;
-  hiçbiri komşu hücreye düşmediği için kontrol sayısı 0 çıkıyor ve test boşuna geçiyordu. Rastgele bir kalabalık ve
-  "en az bir kontrol yapıldı" şartıyla düzeltildi.
-- **Görünmez şeffaf materyal.** URP materyalini özellikleri tek tek atayarak şeffaf yapmak yetmedi; quad çizilmedi.
-  Önce opak kırmızı bir materyalle render edilip sorun materyale indirgendi, sonra URP'nin kendi
-  `BaseShaderGUI.SetupMaterialBlendMode` fonksiyonuyla kuruldu.
-- **Zayıf kamera sarsıntısı.** İlk değerlerle vuruş telefonda görünmüyordu (2 cm). Kamera sapması frame frame
-  ölçülüp üç turda ayarlandı; ayrıca yatma (roll) eklendi.
-- **Yanlış adlandırılmış ölçüm.** Bir benchmark JSON dosyası bir önceki adımın sonucuyla karıştırılmıştı; dosyanın
-  içindeki sürüm ve tarih alanlarından fark edilip silindi.
+## Where the AI was wrong and got corrected
 
-## Son ek: Endless modu
+- **The health bar was always full.** To fix the fill's squared-off look the AI had removed its sprite; uGUI silently
+  ignores `fillAmount` on an Image without a sprite. The check through MCP only read the `fillAmount` value and did not
+  see the bug; **it was noticed while playing on the phone**. The fix was verified by measuring the fill's actual width
+  and rendering the HUD. Lesson: reading a value is not seeing the result.
+- **A test that measured nothing.** The first "only neighbours are checked" test placed enemies exactly 2 m apart;
+  none of them fell into a neighbouring cell, so the check count was 0 and the test passed for nothing. Fixed with a
+  random crowd and a requirement of at least one check.
+- **An invisible transparent material.** Making a URP material transparent by assigning its properties one by one was
+  not enough; the quad was not drawn. The problem was first narrowed down to the material by rendering with an opaque
+  red material, then the material was set up with URP's own `BaseShaderGUI.SetupMaterialBlendMode`.
+- **A weak camera shake.** With the first values a hit was invisible on the phone (2 cm). The camera deviation was
+  measured frame by frame and tuned in three rounds; a roll was also added.
+- **A mislabelled measurement.** A benchmark JSON file had been mixed up with the previous step's result; it was
+  noticed from the version and date fields inside the file and deleted.
 
-Case teslim edilebilir hâldeyken ayrı bir Endless modu eklendi (XP ve can düşürme, seviye barı, 3 karttan birini
-seçme, zamanla güçlenen düşmanlar). Bu iş bulutta çalışan bir Claude Code oturumunda yapıldı; oradan
-geliştiricinin bilgisayarındaki Unity MCP sunucusuna erişilemiyordu. Bu yüzden:
-- Core sistemleri ve testleri, UnityEngine matematik tiplerinin küçük bir taslağıyla .NET'te derlenip çalıştırıldı
-  (278 testin hepsi geçti); Unity ve Editor kodu gerçek Unity referans DLL'lerine karşı derlenerek kontrol edildi.
-- Zorluk ayarı, arenada kaçan ve rastgele kart seçen bir botla Core simüle edilerek yapıldı.
-- Sahneyi elle ya da YAML düzenleyerek kurmak yerine, işi tek tıkla yapan bir editör komutu yazıldı
-  (**Tools > Arena Survivor > Setup Endless Mode**); yeni UI mevcut, stillenmiş objeler kopyalanarak kuruluyor.
+## Late addition: endless mode
+
+When the case was ready to deliver, a separate endless mode was added (XP and health drops, a level bar, picking one of
+3 cards, enemies growing stronger over time). This was done in a Claude Code session running in the cloud, which could
+not reach the Unity MCP server on the developer's machine. Therefore:
+- The Core systems and tests were compiled and run in .NET with a small stand-in for the UnityEngine math types (all
+  278 tests passed); the Unity and Editor code was type-checked against real Unity reference DLLs.
+- The difficulty was tuned by simulating Core with a bot that runs around the arena and picks random cards.
+- Instead of building the scene by hand or by editing YAML, an editor command that does it in one click was written
+  (**Tools > Arena Survivor > Setup Endless Mode**); the new UI is built by duplicating existing, styled objects.
+- One mistake got through: while cleaning up a line ending, the closing brace of the editor assembly definition was
+  deleted as well. The .NET checks did not read `.asmdef` files, so Unity reported it after the merge; it was fixed
+  with a one-line commit.
