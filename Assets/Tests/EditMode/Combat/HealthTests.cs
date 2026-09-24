@@ -112,5 +112,57 @@ namespace ArenaSurvivor.Tests.EditMode.Combat
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new Health(max));
         }
+
+        [Test]
+        public void Heal_RestoresUpToMaxAndReportsAppliedAmount()
+        {
+            var health = new Health(100);
+            health.TakeDamage(30);
+            int reported = 0;
+            health.Healed += amount => reported = amount;
+
+            int applied = health.Heal(50);
+
+            Assert.That(health.Current, Is.EqualTo(100));
+            Assert.That(applied, Is.EqualTo(30));
+            Assert.That(reported, Is.EqualTo(30));
+        }
+
+        [Test]
+        public void Heal_WhenFullOrDeadOrNotPositive_DoesNothing()
+        {
+            var full = new Health(100);
+            var dead = new Health(10);
+            dead.TakeDamage(10);
+            int healedEvents = 0;
+            full.Healed += _ => healedEvents++;
+            dead.Healed += _ => healedEvents++;
+
+            Assert.That(full.Heal(20), Is.EqualTo(0));
+            Assert.That(dead.Heal(20), Is.EqualTo(0));
+            Assert.That(full.Heal(-5), Is.EqualTo(0));
+            Assert.That(dead.IsDead, Is.True);
+            Assert.That(healedEvents, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void IncreaseMax_RaisesMaxAndCurrentBySameAmount()
+        {
+            var health = new Health(100);
+            health.TakeDamage(40);
+
+            health.IncreaseMax(25);
+
+            Assert.That(health.Max, Is.EqualTo(125));
+            Assert.That(health.Current, Is.EqualTo(85));
+        }
+
+        [Test]
+        public void IncreaseMax_NotPositive_Throws()
+        {
+            var health = new Health(100);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => health.IncreaseMax(0));
+        }
     }
 }

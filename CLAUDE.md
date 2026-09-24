@@ -34,6 +34,9 @@ Language: documentation (`Docs/`, README, AI work log) in **Turkish**; code, cod
 - Object pooling for enemies, projectiles and VFX.
 - Performance target: stable 60 FPS on mid-range Android; Low/Medium/High URP quality tiers for weaker devices.
 - Scope: required mechanics first; level-up/upgrades only if time remains.
+- Endless mode (added after the required scope): separate menu button, no timer, XP/health drops, level-up with
+  3 upgrade cards (pick one, game paused), enemies scale over time, best time/level saved. Timed modes and the
+  benchmark are unchanged. Scene/UI/prefabs are built by `Tools > Arena Survivor > Setup Endless Mode`.
 
 ## Code conventions
 - Game logic in plain C# classes (`ArenaSurvivor.Core` assembly). MonoBehaviours only as a thin Unity-facing layer
@@ -59,6 +62,6 @@ Player: merge materials, moderate decimation. Rifle: textures to 512.
 ## Layout
 - `Assets/Models/` : original provided assets (do not modify).
 - `Assets/Scripts/Core/` : plain C# game logic (`ArenaSurvivor.Core.asmdef`).
-- `Assets/Data/` : ScriptableObject tuning assets (difficulty levels, enemy definitions).
+- `Assets/Data/` : ScriptableObject tuning assets (difficulty levels, enemy definitions, endless settings).
 - `Assets/Tests/EditMode/` : EditMode tests (`ArenaSurvivor.Tests.EditMode.asmdef`).
 - `Docs/TECH.md` : technical overview of all systems.

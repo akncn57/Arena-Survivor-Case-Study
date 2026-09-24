@@ -15,5 +15,11 @@ namespace ArenaSurvivor.Core.Save
         // Public lowercase fields: JsonUtility serializes public fields, and the names become the JSON keys.
         public int version = CurrentVersion;
         public int totalKills;
+
+        /// <summary>Longest endless run, in seconds. Added in the endless update; old files load it as 0.</summary>
+        public float bestEndlessSeconds;
+
+        /// <summary>Highest level reached in an endless run (may come from a different run than the best time).</summary>
+        public int bestEndlessLevel;
     }
 }

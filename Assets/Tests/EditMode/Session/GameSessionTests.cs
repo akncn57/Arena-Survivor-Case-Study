@@ -176,5 +176,45 @@ namespace ArenaSurvivor.Tests.EditMode.Session
             Assert.That(_session.State, Is.EqualTo(GameState.Idle));
             Assert.That(_endedCount, Is.EqualTo(0));
         }
+
+        [Test]
+        public void StartEndless_NeverWinsAndReportsNoProgress()
+        {
+            _session.StartEndless();
+
+            for (int i = 0; i < 60 * 60; i++)
+            {
+                _session.Tick(1f);
+            }
+
+            Assert.That(_session.IsEndless, Is.True);
+            Assert.That(_session.IsPlaying, Is.True);
+            Assert.That(_session.Elapsed, Is.EqualTo(3600f).Within(1e-2f));
+            Assert.That(_session.Progress, Is.EqualTo(0f));
+            Assert.That(_endedCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void StartEndless_EndsOnlyByDeath()
+        {
+            _session.StartEndless();
+            _session.Tick(42f);
+
+            _session.NotifyPlayerDied();
+
+            Assert.That(_session.State, Is.EqualTo(GameState.Lost));
+            Assert.That(_result.Value.SurvivedSeconds, Is.EqualTo(42f));
+        }
+
+        [Test]
+        public void TimedRunAfterEndless_IsNotEndless()
+        {
+            _session.StartEndless();
+
+            _session.Start(Duration);
+
+            Assert.That(_session.IsEndless, Is.False);
+            Assert.That(_session.Remaining, Is.EqualTo(Duration));
+        }
     }
 }

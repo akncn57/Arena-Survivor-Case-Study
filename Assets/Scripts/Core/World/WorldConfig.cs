@@ -28,6 +28,9 @@ namespace ArenaSurvivor.Core.World
         [Tooltip("Bullets created up front, so firing does not allocate during play.")]
         [SerializeField, Min(0)] private int projectilePrewarm = 32;
 
+        [Tooltip("Pickups (XP gems, health packs) created up front for the endless mode.")]
+        [SerializeField, Min(0)] private int pickupPrewarm = 100;
+
         public WorldConfig()
         {
         }
@@ -59,5 +62,6 @@ namespace ArenaSurvivor.Core.World
         public float ProjectileHitRadius => projectileHitRadius;
         public int EnemyPrewarm => enemyPrewarm;
         public int ProjectilePrewarm => projectilePrewarm;
+        public int PickupPrewarm => pickupPrewarm;
     }
 }

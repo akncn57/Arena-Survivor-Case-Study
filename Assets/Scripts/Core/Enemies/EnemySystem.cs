@@ -50,6 +50,21 @@ namespace ArenaSurvivor.Core.Enemies
         public IReadOnlyList<Enemy> Active => _active;
         public int AliveCount => _active.Count;
 
+        /// <summary>Scales the max health of enemies spawned from now on (endless mode). Existing enemies keep theirs.</summary>
+        public float HealthMultiplier { get; set; } = 1f;
+
+        /// <summary>Scales the walking speed of every enemy (endless mode).</summary>
+        public float SpeedMultiplier { get; set; } = 1f;
+
+        /// <summary>Scales the damage of every enemy attack (endless mode).</summary>
+        public float DamageMultiplier { get; set; } = 1f;
+
+        /// <summary>Max health a newly spawned enemy gets. Never below 1.</summary>
+        public int SpawnHealth => Math.Max(1, Mathf.RoundToInt(_config.MaxHealth * HealthMultiplier));
+
+        /// <summary>Damage of one enemy attack. Never below 1.</summary>
+        public int AttackDamage => Math.Max(1, Mathf.RoundToInt(_config.ContactDamage * DamageMultiplier));
+
         /// <summary>Distance checks done by the last separation pass. Used by tests and profiling.</summary>
         public int LastSeparationChecks { get; private set; }
 
@@ -82,7 +97,7 @@ namespace ArenaSurvivor.Core.Enemies
             Enemy enemy = _pool.Get();
             enemy.Position = new Vector3(position.x, 0f, position.z);
             enemy.Forward = Vector3.forward;
-            enemy.Health.Reset();
+            enemy.Health.Reset(SpawnHealth);
             enemy.AttackCooldown = 0f;
             enemy.IsInAttackRange = false;
             enemy.IsActive = true;
@@ -129,8 +144,9 @@ namespace ArenaSurvivor.Core.Enemies
         /// <summary>One movement and attack step for every enemy. Returns the damage dealt to the target.</summary>
         private int MoveAndAttack(float deltaTime, Vector3 targetPosition)
         {
-            float step = _config.MoveSpeed * deltaTime;
+            float step = _config.MoveSpeed * SpeedMultiplier * deltaTime;
             float range = _config.AttackRange;
+            int attackDamage = AttackDamage;
             int damageToTarget = 0;
 
             for (int i = 0; i < _active.Count; i++)
@@ -161,7 +177,7 @@ namespace ArenaSurvivor.Core.Enemies
 
                 if (enemy.IsInAttackRange && enemy.AttackCooldown <= 0f)
                 {
-                    damageToTarget += _config.ContactDamage;
+                    damageToTarget += attackDamage;
                     enemy.AttackCooldown = _config.AttackInterval;
                 }
             }
@@ -272,6 +288,14 @@ namespace ArenaSurvivor.Core.Enemies
                 Died?.Invoke(enemy);
                 Despawn(enemy);
             }
+        }
+
+        /// <summary>Puts the endless mode multipliers back to 1. Used when a run starts.</summary>
+        public void ResetModifiers()
+        {
+            HealthMultiplier = 1f;
+            SpeedMultiplier = 1f;
+            DamageMultiplier = 1f;
         }
 
         /// <summary>Removes all enemies without counting kills. Used when a run ends or restarts.</summary>

@@ -131,5 +131,29 @@ namespace ArenaSurvivor.Tests.EditMode.Player
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new PlayerCharacter(new PlayerConfig(), 0f));
         }
+
+        [Test]
+        public void MoveSpeedMultiplier_ScalesSpeedButKeepsFullTiltAtSpeedFractionOne()
+        {
+            _player.MoveSpeedMultiplier = 1.5f;
+
+            _player.Move(1f, Vector2.up);
+
+            Assert.That(_player.Position.z, Is.EqualTo(Speed * 1.5f).Within(1e-4f));
+            Assert.That(_player.SpeedFraction, Is.EqualTo(1f).Within(1e-4f));
+        }
+
+        [Test]
+        public void Reset_UndoesUpgrades()
+        {
+            _player.MoveSpeedMultiplier = 2f;
+            _player.Health.IncreaseMax(50);
+
+            _player.Reset(Vector3.zero);
+
+            Assert.That(_player.MoveSpeedMultiplier, Is.EqualTo(1f));
+            Assert.That(_player.Health.Max, Is.EqualTo(100));
+            Assert.That(_player.Health.Current, Is.EqualTo(100));
+        }
     }
 }

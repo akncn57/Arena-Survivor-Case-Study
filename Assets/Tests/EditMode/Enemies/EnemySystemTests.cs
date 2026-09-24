@@ -406,5 +406,54 @@ namespace ArenaSurvivor.Tests.EditMode.Enemies
             Assert.That(second.Health.Current, Is.EqualTo(EnemyHealth));
             Assert.That(second.IsActive, Is.True);
         }
+
+        [Test]
+        public void HealthMultiplier_AppliesToNewSpawnsOnly()
+        {
+            Enemy before = _system.Spawn(new Vector3(10f, 0f, 0f));
+
+            _system.HealthMultiplier = 2f;
+            Enemy after = _system.Spawn(new Vector3(-10f, 0f, 0f));
+
+            Assert.That(before.Health.Max, Is.EqualTo(EnemyHealth));
+            Assert.That(after.Health.Max, Is.EqualTo(EnemyHealth * 2));
+            Assert.That(after.Health.Current, Is.EqualTo(EnemyHealth * 2));
+        }
+
+        [Test]
+        public void PooledEnemy_GetsCurrentHealthMultiplierWhenReused()
+        {
+            _system.HealthMultiplier = 3f;
+            Enemy first = _system.Spawn(new Vector3(10f, 0f, 0f));
+            _system.ApplyDamage(first, 1000);
+
+            _system.ResetModifiers();
+            Enemy reused = _system.Spawn(new Vector3(10f, 0f, 0f));
+
+            Assert.That(reused, Is.SameAs(first));
+            Assert.That(reused.Health.Max, Is.EqualTo(EnemyHealth));
+        }
+
+        [Test]
+        public void SpeedMultiplier_ScalesWalking()
+        {
+            Enemy enemy = _system.Spawn(new Vector3(10f, 0f, 0f));
+            _system.SpeedMultiplier = 1.5f;
+
+            _system.Tick(1f, Vector3.zero);
+
+            Assert.That(enemy.Position.x, Is.EqualTo(10f - Speed * 1.5f).Within(1e-4f));
+        }
+
+        [Test]
+        public void DamageMultiplier_ScalesAttacks()
+        {
+            _system.Spawn(new Vector3(0.5f, 0f, 0f));
+            _system.DamageMultiplier = 1.5f;
+
+            _system.Tick(0.1f, Vector3.zero);
+
+            Assert.That(_player.Current, Is.EqualTo(100 - 15));
+        }
     }
 }
