@@ -7,7 +7,7 @@ sanal joystick ile hareket eder, rifle menzildeki en yakın düşmana otomatik a
 zombilere karşı 3 dakika hayatta kalmaya çalışır.
 
 - **Unity** 6000.3.16f1, URP 17.3, Input System 1.19, Android (IL2CPP, ARM64)
-- **APK:** _(link eklenecek)_
+- **APK:** [v1.2.0 release sayfası](https://github.com/akncn57/Arena-Survivor-Case-Study/releases/tag/v1.2-endless) ([doğrudan indir](https://github.com/akncn57/Arena-Survivor-Case-Study/releases/download/v1.2-endless/Arena.Survivor.apk), 40 MB)
 - **Video:** _(link eklenecek)_
 
 ## Case gereksinimleri
@@ -59,13 +59,14 @@ Testler: **Window > General > Test Runner > EditMode > Run All** (278 EditMode t
 |------|------|
 | `v1.0-reference` | İlk çalışan build: orijinal modeller ve dokular, optimizasyon yok |
 | `v1.1-optimized` | Optimize asset'ler, mobil render ayarları, animasyon optimizasyonu |
+| `v1.2-endless` | Endless modu eklendi; yayınlanan APK'nın build'i |
 
 ```
 git checkout v1.0-reference   # referans build
 git checkout v1.1-optimized   # optimize build
 ```
 
-Endless modu `v1.1-optimized`'dan sonra eklendi; benchmark senaryosunu değiştirmez.
+Endless modu `v1.1-optimized`'dan sonra eklendi (`v1.2-endless`); benchmark senaryosunu değiştirmez.
 
 ### Performans (Xiaomi Redmi Note 14 Pro, Mali-G57 MC2, 150 düşman)
 

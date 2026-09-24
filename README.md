@@ -7,7 +7,7 @@ virtual joystick, the rifle automatically fires at the nearest enemy in range, a
 against zombies coming in waves.
 
 - **Unity** 6000.3.16f1, URP 17.3, Input System 1.19, Android (IL2CPP, ARM64)
-- **APK:** _(link to be added)_
+- **APK:** [v1.2.0 release page](https://github.com/akncn57/Arena-Survivor-Case-Study/releases/tag/v1.2-endless) ([direct download](https://github.com/akncn57/Arena-Survivor-Case-Study/releases/download/v1.2-endless/Arena.Survivor.apk), 40 MB)
 - **Video:** _(link to be added)_
 
 ## Case requirements
@@ -59,13 +59,14 @@ Tests: **Window > General > Test Runner > EditMode > Run All** (278 EditMode tes
 |------|------|
 | `v1.0-reference` | First working build: original models and textures, no optimization |
 | `v1.1-optimized` | Optimized assets, mobile render settings, animation optimization |
+| `v1.2-endless` | Endless mode added; the build of the released APK |
 
 ```
 git checkout v1.0-reference   # reference build
 git checkout v1.1-optimized   # optimized build
 ```
 
-The endless mode was added after `v1.1-optimized`; it does not change the benchmark scenario.
+The endless mode was added after `v1.1-optimized` (`v1.2-endless`); it does not change the benchmark scenario.
 
 ### Performance (Xiaomi Redmi Note 14 Pro, Mali-G57 MC2, 150 enemies)
 
