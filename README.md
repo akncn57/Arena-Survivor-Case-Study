@@ -1,6 +1,6 @@
 # Arena Survivor
 
-Skyloft Studios Unity Developer case study için yapılmış, Survivor.io tarzı bir mobil oyun. Oyuncu tek bir arenada
+Bir Unity Developer case study'si için yapılmış, Survivor.io tarzı bir mobil oyun. Oyuncu tek bir arenada
 sanal joystick ile hareket eder, rifle menzildeki en yakın düşmana otomatik ateş eder, dalgalar hâlinde gelen
 zombilere karşı 3 dakika hayatta kalmaya çalışır.
 
