@@ -8,7 +8,7 @@ zombilere karşı 3 dakika hayatta kalmaya çalışır.
 
 - **Unity** 6000.3.16f1, URP 17.3, Input System 1.19, Android (IL2CPP, ARM64)
 - **APK:** [v1.2.0 release sayfası](https://github.com/akncn57/Arena-Survivor-Case-Study/releases/tag/v1.2-endless) ([doğrudan indir](https://github.com/akncn57/Arena-Survivor-Case-Study/releases/download/v1.2-endless/Arena.Survivor.apk), 40 MB)
-- **Video:** _(link eklenecek)_
+- **Video:** [YouTube'da oynanış](https://youtu.be/Pc0BnKdYbnM)
 
 ## Case gereksinimleri
 
