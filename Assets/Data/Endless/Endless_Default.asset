@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 835ab5bbb43b4be8abca254668da3b35, type: 3}
+  m_Name: Endless_Default
+  m_EditorClassIdentifier: ArenaSurvivor.Core::ArenaSurvivor.Core.Endless.EndlessSettings
+  config:
+    spawn:
+      startSpawnInterval: 3
+      endSpawnInterval: 0.7
+      startWaveSize: 2
+      endWaveSize: 12
+      maxAliveEnemies: 100
+    rampSeconds: 420
+    enemyScaling:
+      healthPerMinute: 0.3
+      speedPerMinute: 0.08
+      maxSpeedMultiplier: 1.6
+      damagePerMinute: 0.15
+    pickups:
+      experiencePerKill: 1
+      healthDropChance: 0.03
+      healthPerPack: 20
+      collectRadius: 0.8
+      magnetRadius: 3
+      magnetSpeed: 14
+      maxActive: 250
+    leveling:
+      firstLevelExperience: 4
+      experienceGrowthPerLevel: 2
+    cardsPerLevel: 3
+    upgrades:
+    - kind: 0
+      title: Hollow Points
+      description: +{0}% damage
+      valuePerLevel: 0.25
+      maxLevel: 5
+    - kind: 1
+      title: Rapid Fire
+      description: +{0}% attack speed
+      valuePerLevel: 0.2
+      maxLevel: 5
+    - kind: 2
+      title: Multishot
+      description: +{0} projectile per shot
+      valuePerLevel: 1
+      maxLevel: 4
+    - kind: 3
+      title: Long Barrel
+      description: +{0}% range
+      valuePerLevel: 0.15
+      maxLevel: 3
+    - kind: 4
+      title: Tough Skin
+      description: +{0} max health
+      valuePerLevel: 25
+      maxLevel: 5
+    - kind: 5
+      title: Swift Boots
+      description: +{0}% move speed
+      valuePerLevel: 0.1
+      maxLevel: 4
+    - kind: 6
+      title: Magnet
+      description: +{0}% pickup range
+      valuePerLevel: 0.5
+      maxLevel: 3
+    - kind: 7
+      title: First Aid
+      description: Restore {0}% health
+      valuePerLevel: 0.4
+      maxLevel: 0
